@@ -1,0 +1,15 @@
+ci:
+  autofix_commit_msg: "🚨 `pre-commit-ci`修复格式错误"
+  skip:
+    - "poetry-lock"
+  autofix_prs: true
+  autoupdate_branch: v4
+  autoupdate_schedule: monthly
+  autoupdate_commit_msg: "⬆️ `pre-commit-ci`自动升级"
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.8
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format

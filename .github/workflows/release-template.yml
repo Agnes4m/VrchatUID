@@ -1,0 +1,157 @@
+name: Release Template Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (例如: 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build-template:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create template package
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          TEMPLATE_DIR="gsuid-plugin-template-${VERSION}"
+          
+          # 创建临时目录
+          mkdir -p "/tmp/${TEMPLATE_DIR}"
+          
+          # 复制模板文件（排除不需要的文件）
+          rsync -av --exclude='.git' \
+                    --exclude='.github' \
+                    --exclude='.uv-cache' \
+                    --exclude='__pycache__' \
+                    --exclude='*.pyc' \
+                    --exclude='.pytest_cache' \
+                    --exclude='.ruff_cache' \
+                    --exclude='*.egg-info' \
+                    --exclude='dist' \
+                    --exclude='build' \
+                    --exclude='.venv' \
+                    --exclude='venv' \
+                    ./ "/tmp/${TEMPLATE_DIR}/"
+          
+          # 创建压缩包
+          cd /tmp
+          tar -czf "${TEMPLATE_DIR}.tar.gz" "${TEMPLATE_DIR}"
+          zip -r "${TEMPLATE_DIR}.zip" "${TEMPLATE_DIR}"
+          
+          # 移动回工作目录
+          mv "${TEMPLATE_DIR}.tar.gz" "${GITHUB_WORKSPACE}/"
+          mv "${TEMPLATE_DIR}.zip" "${GITHUB_WORKSPACE}/"
+          
+          echo "Template packages created:"
+          ls -lh "${GITHUB_WORKSPACE}/${TEMPLATE_DIR}".*
+      
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat > RELEASE_NOTES.md << 'EOF'
+          ## 🚀 GSUID Plugin Template ${{ steps.version.outputs.VERSION }}
+          
+          ### 📦 模板包下载
+          
+          我们提供了两种格式的模板包，你可以选择任意一种：
+          
+          - **tar.gz 格式** (Linux/Mac 推荐): `gsuid-plugin-template-${{ steps.version.outputs.VERSION }}.tar.gz`
+          - **zip 格式** (Windows 推荐): `gsuid-plugin-template-${{ steps.version.outputs.VERSION }}.zip`
+          
+          ### 🎯 使用方式
+          
+          我们提供了三种使用此模板的方式：
+          
+          #### 方式一：GitHub 模板按钮（推荐）
+          
+          点击仓库主页的 **"Use this template"** 按钮，创建一个新的仓库。
+          
+          详细步骤：[method-github-template.md](./docs/method-github-template.md)
+          
+          #### 方式二：下载模板包
+          
+          1. 下载上方的模板压缩包
+          2. 解压到 `gsuid_core/plugins/` 目录
+          3. 重命名为你的插件名称
+          4. 运行初始化脚本：
+             ```bash
+             cd gsuid_core/plugins/YourPluginName
+             python init_plugin.py
+             ```
+          
+          详细步骤：[method-template-package.md](./docs/method-template-package.md)
+          
+          #### 方式三：Git 克隆
+          
+          ```bash
+          cd gsuid_core/plugins/
+          git clone https://github.com/${{ github.repository }}.git
+          cd gsuid_plugin_template
+          rm -rf .git && git init && git add . && git commit -m "Initial commit"
+          cd .. && mv gsuid_plugin_template MyPlugin && cd MyPlugin
+          python init_plugin.py
+          ```
+          
+          详细步骤：[method-git-clone.md](./docs/method-git-clone.md)
+          
+          ### 📚 文档
+          
+          - [快速开始指南](README.md#-快速开始)
+          - [架构说明](ARCHITECTURE.md)
+          - [API 文档](https://github.com/Genshin-bots/gsuid_core)
+          
+          ### 🆕 更新内容
+          
+          查看 [CHANGELOG.md](CHANGELOG.md) 了解详细更新内容。
+          EOF
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            gsuid-plugin-template-*.tar.gz
+            gsuid-plugin-template-*.zip
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload artifacts (manual trigger)
+        uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: template-packages-${{ steps.version.outputs.VERSION }}
+          path: |
+            gsuid-plugin-template-*.tar.gz
+            gsuid-plugin-template-*.zip
+          retention-days: 30
