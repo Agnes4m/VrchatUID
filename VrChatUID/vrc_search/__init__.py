@@ -23,7 +23,9 @@ async def vrc_search_user(bot: Bot, ev: Event) -> None:
 
     search_term = ev.text.strip()
     if not search_term:
-        await bot.send("请输入搜索关键词！\n格式：vrc搜索用户 关键词\n例如：vrc搜索用户 Tom")
+        await bot.send(
+            "请输入搜索关键词！\n格式：vrc搜索用户 关键词\n例如：vrc搜索用户 Tom"
+        )
         return
 
     try:

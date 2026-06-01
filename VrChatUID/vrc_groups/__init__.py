@@ -31,7 +31,9 @@ async def vrc_search_group(bot: Bot, ev: Event) -> None:
 
     search_term = ev.text.strip()
     if not search_term:
-        await bot.send("请输入搜索关键词！\n格式：vrc搜索群组 关键词\n例如：vrc搜索群组 VRChat")
+        await bot.send(
+            "请输入搜索关键词！\n格式：vrc搜索群组 关键词\n例如：vrc搜索群组 VRChat"
+        )
         return
 
     try:
@@ -436,7 +438,9 @@ async def vrc_group_requests(bot: Bot, ev: Event) -> None:
                 user_id_val = getattr(req, "user_id", "未知")
                 created_at = format_datetime(getattr(req, "created_at", None))
                 membership_status = getattr(req, "membership_status", "未知")
-                has_joined_from_purchase = getattr(req, "has_joined_from_purchase", False)
+                has_joined_from_purchase = getattr(
+                    req, "has_joined_from_purchase", False
+                )
 
             msg += f"{i}. 用户ID: {user_id_val}\n"
             msg += f"   请求时间: {created_at}\n"
@@ -499,7 +503,9 @@ async def vrc_process_join_request(bot: Bot, ev: Event) -> None:
             return
 
         await bot.send("正在处理请求...")
-        await respond_to_group_join_request(client, ev.state.get("vrc_group_id", ""), target_user_id, accept)
+        await respond_to_group_join_request(
+            client, ev.state.get("vrc_group_id", ""), target_user_id, accept
+        )
 
         action_text = "接受" if accept else "拒绝"
         await bot.send(f"已{action_text}用户 {target_user_id} 的加入请求")
@@ -525,7 +531,9 @@ async def vrc_invite_user(bot: Bot, ev: Event) -> None:
     text = ev.text.strip()
     parts = text.split()
     if len(parts) < 2:
-        await bot.send("格式：vrc邀请用户 群组ID 用户ID\n例如：vrc邀请用户 grp_abc123 usr_def456")
+        await bot.send(
+            "格式：vrc邀请用户 群组ID 用户ID\n例如：vrc邀请用户 grp_abc123 usr_def456"
+        )
         return
 
     group_id = parts[0]
@@ -557,7 +565,9 @@ async def vrc_kick_member(bot: Bot, ev: Event) -> None:
     text = ev.text.strip()
     parts = text.split()
     if len(parts) < 2:
-        await bot.send("格式：vrc踢出成员 群组ID 用户ID\n例如：vrc踢出成员 grp_abc123 usr_def456")
+        await bot.send(
+            "格式：vrc踢出成员 群组ID 用户ID\n例如：vrc踢出成员 grp_abc123 usr_def456"
+        )
         return
 
     group_id = parts[0]
@@ -589,7 +599,9 @@ async def vrc_ban_member(bot: Bot, ev: Event) -> None:
     text = ev.text.strip()
     parts = text.split()
     if len(parts) < 2:
-        await bot.send("格式：vrc封禁成员 群组ID 用户ID\n例如：vrc封禁成员 grp_abc123 usr_def456")
+        await bot.send(
+            "格式：vrc封禁成员 群组ID 用户ID\n例如：vrc封禁成员 grp_abc123 usr_def456"
+        )
         return
 
     group_id = parts[0]
@@ -621,7 +633,9 @@ async def vrc_unban_member(bot: Bot, ev: Event) -> None:
     text = ev.text.strip()
     parts = text.split()
     if len(parts) < 2:
-        await bot.send("格式：vrc解除封禁 群组ID 用户ID\n例如：vrc解除封禁 grp_abc123 usr_def456")
+        await bot.send(
+            "格式：vrc解除封禁 群组ID 用户ID\n例如：vrc解除封禁 grp_abc123 usr_def456"
+        )
         return
 
     group_id = parts[0]
@@ -721,8 +735,16 @@ async def vrc_group_audit_logs(bot: Bot, ev: Event) -> None:
                 target = log.get("target", {})
                 created_at = format_datetime(log.get("created_at"))
 
-                actor_name = actor.get("display_name", "未知") if isinstance(actor, dict) else "未知"
-                target_name = target.get("display_name", "未知") if isinstance(target, dict) else "未知"
+                actor_name = (
+                    actor.get("display_name", "未知")
+                    if isinstance(actor, dict)
+                    else "未知"
+                )
+                target_name = (
+                    target.get("display_name", "未知")
+                    if isinstance(target, dict)
+                    else "未知"
+                )
             else:
                 action = getattr(log, "action", "未知")
                 created_at = format_datetime(getattr(log, "created_at", None))
@@ -775,7 +797,9 @@ async def vrc_group_instances(bot: Bot, ev: Event) -> None:
                 location = inst.get("location", "未知")
                 member_count = inst.get("member_count", 0)
                 world = inst.get("world", {})
-                world_name = world.get("name", "未知") if isinstance(world, dict) else "未知"
+                world_name = (
+                    world.get("name", "未知") if isinstance(world, dict) else "未知"
+                )
             else:
                 instance_id = getattr(inst, "instance_id", "未知")
                 location = getattr(inst, "location", "未知")
@@ -824,7 +848,9 @@ async def vrc_my_group_member(bot: Bot, ev: Event) -> None:
 
         if isinstance(member_info, dict):
             user_data = member_info.get("user", {})
-            user_id_val = user_data.get("id", "未知") if isinstance(user_data, dict) else "未知"
+            user_id_val = (
+                user_data.get("id", "未知") if isinstance(user_data, dict) else "未知"
+            )
             membership_status = member_info.get("membership_status", "未知")
             created_at = format_datetime(member_info.get("created_at"))
             updated_at = format_datetime(member_info.get("updated_at"))
@@ -915,7 +941,9 @@ async def vrc_create_announcement(bot: Bot, ev: Event) -> None:
     parts = text.split(maxsplit=2)
 
     if len(parts) < 2:
-        await bot.send("格式：vrc创建公告 群组ID 标题 [内容]\n例如：vrc创建公告 grp_abc123 公告标题 公告内容")
+        await bot.send(
+            "格式：vrc创建公告 群组ID 标题 [内容]\n例如：vrc创建公告 grp_abc123 公告标题 公告内容"
+        )
         return
 
     group_id = parts[0]
@@ -964,7 +992,11 @@ async def vrc_group_posts(bot: Bot, ev: Event) -> None:
             if isinstance(post, dict):
                 title = post.get("title", "无标题")
                 author = post.get("author", {})
-                author_name = author.get("display_name", "未知") if isinstance(author, dict) else "未知"
+                author_name = (
+                    author.get("display_name", "未知")
+                    if isinstance(author, dict)
+                    else "未知"
+                )
                 created_at = format_datetime(post.get("created_at"))
                 text = post.get("text", "")[:50]
             else:
@@ -1002,7 +1034,9 @@ async def vrc_create_post(bot: Bot, ev: Event) -> None:
     parts = text.split(maxsplit=2)
 
     if len(parts) < 2:
-        await bot.send("格式：vrc创建帖子 群组ID 标题 [内容]\n例如：vrc创建帖子 grp_abc123 帖子标题 帖子内容")
+        await bot.send(
+            "格式：vrc创建帖子 群组ID 标题 [内容]\n例如：vrc创建帖子 grp_abc123 帖子标题 帖子内容"
+        )
         return
 
     group_id = parts[0]

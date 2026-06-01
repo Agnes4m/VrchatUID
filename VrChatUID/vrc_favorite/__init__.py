@@ -204,12 +204,16 @@ async def vrc_add_favorite(bot: Bot, ev: Event) -> None:
 
     text = ev.text.strip()
     if not text:
-        await bot.send("格式：vrc添加收藏 类型 引用ID [标签]\n例如：vrc添加收藏 world wrld_abc123 group1")
+        await bot.send(
+            "格式：vrc添加收藏 类型 引用ID [标签]\n例如：vrc添加收藏 world wrld_abc123 group1"
+        )
         return
 
     parts = text.split()
     if len(parts) < 2:
-        await bot.send("格式错误！请发送：vrc添加收藏 类型 引用ID [标签]\n例如：vrc添加收藏 world wrld_abc123 group1")
+        await bot.send(
+            "格式错误！请发送：vrc添加收藏 类型 引用ID [标签]\n例如：vrc添加收藏 world wrld_abc123 group1"
+        )
         return
 
     fav_type = parts[0].lower()
@@ -274,7 +278,9 @@ async def vrc_favorite_group_detail(bot: Bot, ev: Event) -> None:
 
     text = ev.text.strip()
     if not text:
-        await bot.send("格式：vrc收藏组详情 类型 收藏组名称\n例如：vrc收藏组详情 world mygroup")
+        await bot.send(
+            "格式：vrc收藏组详情 类型 收藏组名称\n例如：vrc收藏组详情 world mygroup"
+        )
         return
 
     parts = text.split()
@@ -331,7 +337,9 @@ async def vrc_clear_favorite_group(bot: Bot, ev: Event) -> None:
 
     text = ev.text.strip()
     if not text:
-        await bot.send("格式：vrc清空收藏组 类型 收藏组名称\n例如：vrc清空收藏组 world mygroup")
+        await bot.send(
+            "格式：vrc清空收藏组 类型 收藏组名称\n例如：vrc清空收藏组 world mygroup"
+        )
         return
 
     parts = text.split()

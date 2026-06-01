@@ -22,9 +22,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 PLAYER_PATH = DATA_DIR / "player"
 PLAYER_PATH.mkdir(parents=True, exist_ok=True)
 
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 
 class NotLoggedInError(Exception):
@@ -171,7 +169,9 @@ async def login_via_password(
             username=username,
             password=password,
             user_id=str(current_user.id) if current_user.id else "",
-            display_name=str(current_user.display_name) if current_user.display_name else "",
+            display_name=str(current_user.display_name)
+            if current_user.display_name
+            else "",
         )
         save_login_info(user_id, bot_id, login_info)
         save_client_cookies(client, user_id, bot_id)
@@ -184,7 +184,11 @@ async def login_via_password(
 
     except UnauthorizedException as e:
         # 检查是否是2FA验证
-        if e.status == 200 and isinstance(e.reason, str) and "2 Factor Authentication" in e.reason:
+        if (
+            e.status == 200
+            and isinstance(e.reason, str)
+            and "2 Factor Authentication" in e.reason
+        ):
             two_fa_email = "Email 2 Factor Authentication" in e.reason
             logger.info(f"检测到2FA验证，类型: {'邮箱' if two_fa_email else 'APP'}")
 

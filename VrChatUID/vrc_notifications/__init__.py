@@ -53,7 +53,11 @@ async def vrc_show_notifications(bot: Bot, ev: Event) -> None:
         if friend_requests:
             msg += f"【好友请求】{len(friend_requests)} 条\n"
             for idx, req in friend_requests[:10]:
-                sender_name = getattr(req, "sender_username", getattr(req, "sender_display_name", "Unknown"))
+                sender_name = getattr(
+                    req,
+                    "sender_username",
+                    getattr(req, "sender_display_name", "Unknown"),
+                )
                 sender_id = getattr(req, "sender_user_id", "")
                 created_at = getattr(req, "created_at", "")
                 msg += f"  {idx}. {sender_name}\n"

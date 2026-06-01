@@ -10,7 +10,11 @@ sv = SV("vrc经济")
 
 @sv.on_command(("vrc余额", "vrcbalance"))
 async def vrc_balance(bot: Bot, ev: Event) -> None:
-    from ..utils.api.economy import get_balance, get_current_user_id, get_balance_earnings
+    from ..utils.api.economy import (
+        get_balance,
+        get_current_user_id,
+        get_balance_earnings,
+    )
 
     user_id = ev.user_id
     bot_id = ev.bot_id
