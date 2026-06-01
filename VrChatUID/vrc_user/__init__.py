@@ -20,7 +20,9 @@ DATA_DIR = get_res_path() / "vrchat"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
-async def _complete_login(bot: Bot, user_id: str, bot_id: str, username: str, password: str, current_user) -> None:
+async def _complete_login(
+    bot: Bot, user_id: str, bot_id: str, username: str, password: str, current_user
+) -> None:
     """完成登录，保存用户信息"""
     # 更新数据库
     await VrChatBind.insert_data(
@@ -59,7 +61,9 @@ async def vrc_login(bot: Bot, ev: Event) -> None:
 
     parts = text.split()
     if len(parts) != 2:
-        await bot.send("格式错误！请发送：\nvrc登录 用户名 密码\n\n例如：vrc登录 example@email.com mypassword")
+        await bot.send(
+            "格式错误！请发送：\nvrc登录 用户名 密码\n\n例如：vrc登录 example@email.com mypassword"
+        )
         return
 
     username, password = parts
@@ -100,7 +104,9 @@ async def vrc_login(bot: Bot, ev: Event) -> None:
             current_user = await e.verify_func(verify_code)
 
             # 登录成功
-            await _complete_login(bot, user_id, bot_id, username, password, current_user)
+            await _complete_login(
+                bot, user_id, bot_id, username, password, current_user
+            )
 
         except Exception as verify_error:
             logger.error(f"VRChat 验证码验证失败: {verify_error}")

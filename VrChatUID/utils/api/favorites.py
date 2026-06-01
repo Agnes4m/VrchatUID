@@ -3,7 +3,9 @@ from vrchatapi.api import FavoritesApi
 from vrchatapi.models import AddFavoriteRequest
 
 
-async def get_favorites(client: ApiClient, favorite_type: str, tag: str = "", max_size: int = 20):
+async def get_favorites(
+    client: ApiClient, favorite_type: str, tag: str = "", max_size: int = 20
+):
     """获取收藏列表"""
     api = FavoritesApi(client)
     offset = 0
@@ -41,7 +43,12 @@ async def get_favorite_groups(client: ApiClient, max_size: int = 50):
         offset += 100
 
 
-async def add_favorite(client: ApiClient, favorite_type: str, favorite_id: str, tags: list[str] | None = None):
+async def add_favorite(
+    client: ApiClient,
+    favorite_type: str,
+    favorite_id: str,
+    tags: list[str] | None = None,
+):
     """添加收藏"""
     api = FavoritesApi(client)
     request = AddFavoriteRequest(
@@ -58,7 +65,9 @@ async def remove_favorite(client: ApiClient, favorite_id: str):
     return api.remove_favorite(favorite_id=favorite_id)
 
 
-async def get_favorite_group(client: ApiClient, favorite_group_type: str, favorite_group_name: str, user_id: str):
+async def get_favorite_group(
+    client: ApiClient, favorite_group_type: str, favorite_group_name: str, user_id: str
+):
     """获取收藏组详情"""
     api = FavoritesApi(client)
     return api.get_favorite_group(
@@ -69,7 +78,11 @@ async def get_favorite_group(client: ApiClient, favorite_group_type: str, favori
 
 
 async def update_favorite_group(
-    client: ApiClient, favorite_group_type: str, favorite_group_name: str, user_id: str, update_data: dict
+    client: ApiClient,
+    favorite_group_type: str,
+    favorite_group_name: str,
+    user_id: str,
+    update_data: dict,
 ):
     """更新收藏组"""
     from vrchatapi.models import UpdateFavoriteGroupRequest
@@ -84,7 +97,9 @@ async def update_favorite_group(
     )
 
 
-async def clear_favorite_group(client: ApiClient, favorite_group_type: str, favorite_group_name: str, user_id: str):
+async def clear_favorite_group(
+    client: ApiClient, favorite_group_type: str, favorite_group_name: str, user_id: str
+):
     """清空收藏组"""
     api = FavoritesApi(client)
     return api.clear_favorite_group(

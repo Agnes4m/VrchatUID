@@ -100,7 +100,9 @@ async def vrc_search_world(bot: Bot, ev: Event) -> None:
 
     search_term = ev.text.strip()
     if not search_term:
-        await bot.send("请输入搜索关键词！\n格式：vrc搜索世界 关键词\n例如：vrc搜索世界 Japan")
+        await bot.send(
+            "请输入搜索关键词！\n格式：vrc搜索世界 关键词\n例如：vrc搜索世界 Japan"
+        )
         return
 
     try:
