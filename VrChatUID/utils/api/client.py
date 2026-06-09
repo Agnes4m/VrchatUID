@@ -1,13 +1,14 @@
-import json
 import asyncio
-from typing import TYPE_CHECKING, Callable, Optional, Awaitable
+import json
+from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from http.cookiejar import LWPCookieJar
+from typing import TYPE_CHECKING, Optional
 
+from gsuid_core.data_store import get_res_path
+from gsuid_core.logger import logger
 from vrchatapi import ApiClient, Configuration
 from vrchatapi.exceptions import ApiException, UnauthorizedException
-
-from gsuid_core.logger import logger
-from gsuid_core.data_store import get_res_path
 
 if TYPE_CHECKING:
     from vrchatapi.models.current_user import CurrentUser
@@ -126,11 +127,24 @@ def _create_client(username: str, password: str) -> ApiClient:
 async def get_client(user_id: str, bot_id: str) -> ApiClient:
     login_info = get_login_info(user_id, bot_id)
     client = _create_client(login_info.username, login_info.password)
-    try:
+    with suppress(NotLoggedInError):
         load_cookies_to_client(client, user_id, bot_id)
-    except NotLoggedInError:
-        pass
     return client
+
+
+async def get_client_or_notify(bot, user_id: str, bot_id: str):
+    """获取 API 客户端；未登录时自动发送提示并返回 None。
+
+    Usage:
+        client = await get_client_or_notify(bot, user_id, bot_id)
+        if client is None:
+            return
+    """
+    try:
+        return await get_client(user_id, bot_id)
+    except NotLoggedInError:
+        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+        return None
 
 
 async def verify_login(user_id: str, bot_id: str) -> bool:
@@ -208,7 +222,7 @@ async def login_via_password(
 
         # 其他Unauthorized异常 - 账号密码错误
         logger.error(f"登录失败: {e}")
-        raise ApiException(401, "用户名或密码错误")
+        raise ApiException(401, "用户名或密码错误") from e
 
 
 async def get_current_user_info(user_id: str, bot_id: str) -> Optional["CurrentUser"]:

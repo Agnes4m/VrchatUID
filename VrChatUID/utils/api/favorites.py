@@ -1,10 +1,12 @@
+import asyncio
+
 from vrchatapi import ApiClient
 from vrchatapi.api import FavoritesApi
-from vrchatapi.models import AddFavoriteRequest
+from vrchatapi.models import AddFavoriteRequest, UpdateFavoriteGroupRequest
 
 
-async def get_favorites(client: ApiClient, favorite_type: str, tag: str = "", max_size: int = 20):
-    """获取收藏列表"""
+def get_favorites(client: ApiClient, favorite_type: str, tag: str = "", max_size: int = 20):
+    """获取收藏列表（同步生成器）"""
     api = FavoritesApi(client)
     offset = 0
     count = 0
@@ -22,8 +24,8 @@ async def get_favorites(client: ApiClient, favorite_type: str, tag: str = "", ma
         offset += 100
 
 
-async def get_favorite_groups(client: ApiClient, max_size: int = 50):
-    """获取收藏组列表"""
+def get_favorite_groups(client: ApiClient, max_size: int = 50):
+    """获取收藏组列表（同步生成器）"""
     api = FavoritesApi(client)
     offset = 0
     count = 0
@@ -49,19 +51,20 @@ async def add_favorite(client: ApiClient, favorite_type: str, favorite_id: str, 
         favorite_id=favorite_id,
         tags=tags or [],
     )
-    return api.add_favorite(add_favorite_request=request)
+    return await asyncio.to_thread(api.add_favorite, add_favorite_request=request)
 
 
 async def remove_favorite(client: ApiClient, favorite_id: str):
     """删除收藏"""
     api = FavoritesApi(client)
-    return api.remove_favorite(favorite_id=favorite_id)
+    return await asyncio.to_thread(api.remove_favorite, favorite_id=favorite_id)
 
 
 async def get_favorite_group(client: ApiClient, favorite_group_type: str, favorite_group_name: str, user_id: str):
     """获取收藏组详情"""
     api = FavoritesApi(client)
-    return api.get_favorite_group(
+    return await asyncio.to_thread(
+        api.get_favorite_group,
         favorite_group_type=favorite_group_type,
         favorite_group_name=favorite_group_name,
         user_id=user_id,
@@ -69,14 +72,17 @@ async def get_favorite_group(client: ApiClient, favorite_group_type: str, favori
 
 
 async def update_favorite_group(
-    client: ApiClient, favorite_group_type: str, favorite_group_name: str, user_id: str, update_data: dict
+    client: ApiClient,
+    favorite_group_type: str,
+    favorite_group_name: str,
+    user_id: str,
+    update_data: dict,
 ):
     """更新收藏组"""
-    from vrchatapi.models import UpdateFavoriteGroupRequest
-
     api = FavoritesApi(client)
     request = UpdateFavoriteGroupRequest(**update_data)
-    return api.update_favorite_group(
+    return await asyncio.to_thread(
+        api.update_favorite_group,
         favorite_group_type=favorite_group_type,
         favorite_group_name=favorite_group_name,
         user_id=user_id,
@@ -87,7 +93,8 @@ async def update_favorite_group(
 async def clear_favorite_group(client: ApiClient, favorite_group_type: str, favorite_group_name: str, user_id: str):
     """清空收藏组"""
     api = FavoritesApi(client)
-    return api.clear_favorite_group(
+    return await asyncio.to_thread(
+        api.clear_favorite_group,
         favorite_group_type=favorite_group_type,
         favorite_group_name=favorite_group_name,
         user_id=user_id,
@@ -97,4 +104,4 @@ async def clear_favorite_group(client: ApiClient, favorite_group_type: str, favo
 async def get_favorite_limits(client: ApiClient):
     """获取收藏限制信息"""
     api = FavoritesApi(client)
-    return api.get_favorite_limits()
+    return await asyncio.to_thread(api.get_favorite_limits)

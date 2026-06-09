@@ -1,9 +1,33 @@
-from gsuid_core.sv import SV
 from gsuid_core.bot import Bot
 from gsuid_core.logger import logger
 from gsuid_core.models import Event
+from gsuid_core.sv import SV
 
-from ..utils.api.client import NotLoggedInError, get_client
+from ..utils.api.client import get_client_or_notify
+from ..utils.api.groups import (
+    ban_group_member,
+    create_group_announcement,
+    create_group_post,
+    get_group,
+    get_group_announcements,
+    get_group_audit_logs,
+    get_group_bans,
+    get_group_instances,
+    get_group_members,
+    get_group_permissions,
+    get_group_posts,
+    get_group_requests,
+    get_group_roles,
+    get_my_group_member,
+    invite_user_to_group,
+    join_group,
+    kick_group_member,
+    leave_group,
+    respond_to_group_join_request,
+    search_groups,
+    unban_group_member,
+    update_group_representation,
+)
 
 sv = SV("vrc群组")
 
@@ -18,15 +42,12 @@ def format_datetime(dt):
 
 @sv.on_command(("vrc搜索群组", "vrcsg"))
 async def vrc_search_group(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import search_groups
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     search_term = ev.text.strip()
@@ -36,7 +57,7 @@ async def vrc_search_group(bot: Bot, ev: Event) -> None:
 
     try:
         await bot.send(f"正在搜索群组「{search_term}」...")
-        groups = [x async for x in search_groups(client, search_term, max_size=10)]
+        groups = list(search_groups(client, search_term, max_size=10))
 
         if not groups:
             await bot.send(f"未找到与「{search_term}」相关的群组")
@@ -69,15 +90,12 @@ async def vrc_search_group(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("加入群组", "join_group"))
 async def vrc_join_group(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import join_group
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     if "vrc_groups" not in ev.state:
@@ -110,15 +128,12 @@ async def vrc_join_group(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc群组信息", "vrcgi"))
 async def vrc_group_info(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import get_group
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     group_id = ev.text.strip()
@@ -183,15 +198,12 @@ async def vrc_group_info(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc群组成员", "vrcgm"))
 async def vrc_group_members(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import get_group_members
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     group_id = ev.text.strip()
@@ -241,15 +253,12 @@ async def vrc_group_members(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc群组角色", "vrcgr"))
 async def vrc_group_roles(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import get_group_roles
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     group_id = ev.text.strip()
@@ -318,15 +327,12 @@ async def vrc_group_roles(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc群组公告", "vrcga"))
 async def vrc_group_announcement(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import get_group_announcements
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     group_id = ev.text.strip()
@@ -372,15 +378,12 @@ async def vrc_group_announcement(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc离开群组", "vrclg"))
 async def vrc_leave_group(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import leave_group
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     group_id = ev.text.strip()
@@ -400,15 +403,12 @@ async def vrc_leave_group(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc群组请求", "vrcgreq"))
 async def vrc_group_requests(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import get_group_requests
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     group_id = ev.text.strip()
@@ -457,15 +457,12 @@ async def vrc_group_requests(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc处理请求", "vrcgpjr"))
 async def vrc_process_join_request(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import respond_to_group_join_request
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     if "vrc_group_requests" not in ev.state:
@@ -489,10 +486,7 @@ async def vrc_process_join_request(bot: Bot, ev: Event) -> None:
             return
 
         req = requests[index]
-        if isinstance(req, dict):
-            target_user_id = req.get("user_id", "")
-        else:
-            target_user_id = getattr(req, "user_id", "")
+        target_user_id = req.get("user_id", "") if isinstance(req, dict) else getattr(req, "user_id", "")
 
         if not target_user_id:
             await bot.send("无法获取用户ID")
@@ -511,15 +505,12 @@ async def vrc_process_join_request(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc邀请用户", "vrcgui"))
 async def vrc_invite_user(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import invite_user_to_group
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()
@@ -543,15 +534,12 @@ async def vrc_invite_user(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc踢出成员", "vrcgmk"))
 async def vrc_kick_member(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import kick_group_member
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()
@@ -575,15 +563,12 @@ async def vrc_kick_member(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc封禁成员", "vrcgbm"))
 async def vrc_ban_member(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import ban_group_member
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()
@@ -607,15 +592,12 @@ async def vrc_ban_member(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc解除封禁", "vrcgub"))
 async def vrc_unban_member(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import unban_group_member
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()
@@ -639,15 +621,12 @@ async def vrc_unban_member(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc封禁列表", "vrcgb"))
 async def vrc_group_bans(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import get_group_bans
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     group_id = ev.text.strip()
@@ -688,15 +667,12 @@ async def vrc_group_bans(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc审计日志", "vrcgal"))
 async def vrc_group_audit_logs(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import get_group_audit_logs
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     group_id = ev.text.strip()
@@ -743,15 +719,12 @@ async def vrc_group_audit_logs(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc群组实例", "vrcgi2"))
 async def vrc_group_instances(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import get_group_instances
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     group_id = ev.text.strip()
@@ -796,15 +769,12 @@ async def vrc_group_instances(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc我的群组信息", "vrcmgm"))
 async def vrc_my_group_member(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import get_my_group_member
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     group_id = ev.text.strip()
@@ -862,15 +832,12 @@ async def vrc_my_group_member(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc更新群组代表", "vrcugr"))
 async def vrc_update_group_rep(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import update_group_representation
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()
@@ -900,15 +867,12 @@ async def vrc_update_group_rep(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc创建公告", "vrcgca"))
 async def vrc_create_announcement(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import create_group_announcement
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()
@@ -934,15 +898,12 @@ async def vrc_create_announcement(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc帖子列表", "vrcgpl"))
 async def vrc_group_posts(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import get_group_posts
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     group_id = ev.text.strip()
@@ -987,15 +948,12 @@ async def vrc_group_posts(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc创建帖子", "vrcgcp"))
 async def vrc_create_post(bot: Bot, ev: Event) -> None:
-    from ..utils.api.groups import create_group_post
 
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()

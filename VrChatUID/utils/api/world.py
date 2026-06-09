@@ -1,8 +1,11 @@
+import asyncio
+
 from vrchatapi import ApiClient
 from vrchatapi.api import WorldsApi
 
 
-async def search_worlds(client: ApiClient, search: str, max_size: int = 10):
+def search_worlds(client: ApiClient, search: str, max_size: int = 10):
+    """搜索世界（同步生成器）"""
     api = WorldsApi(client)
     offset = 0
     count = 0
@@ -21,5 +24,6 @@ async def search_worlds(client: ApiClient, search: str, max_size: int = 10):
 
 
 async def get_world(client: ApiClient, world_id: str):
+    """通过世界ID获取世界信息"""
     api = WorldsApi(client)
-    return api.get_world(world_id=world_id)
+    return await asyncio.to_thread(api.get_world, world_id=world_id)

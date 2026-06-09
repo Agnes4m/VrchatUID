@@ -1,24 +1,26 @@
-from gsuid_core.sv import SV
 from gsuid_core.bot import Bot
 from gsuid_core.logger import logger
 from gsuid_core.models import Event
+from gsuid_core.sv import SV
 
-from ..utils.api.client import NotLoggedInError, get_client
+from ..utils.api.client import get_client_or_notify
+from ..utils.api.notifications import (
+    accept_friend_request,
+    delete_notification,
+    get_notifications,
+    mark_notification_as_read,
+)
 
 sv = SV("vrc通知")
 
 
 @sv.on_command(("vrc显示通知", "vrcsn", "vrc通知"))
 async def vrc_show_notifications(bot: Bot, ev: Event) -> None:
-    from ..utils.api.notifications import get_notifications
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()
@@ -30,7 +32,7 @@ async def vrc_show_notifications(bot: Bot, ev: Event) -> None:
 
     try:
         await bot.send("正在获取通知列表...")
-        notifications = [x async for x in get_notifications(client, n=n)]
+        notifications = list(get_notifications(client, n=n))
 
         if not notifications:
             await bot.send("没有通知")
@@ -85,15 +87,11 @@ async def vrc_show_notifications(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("接受", "accept"))
 async def vrc_accept_friend_request(bot: Bot, ev: Event) -> None:
-    from ..utils.api.notifications import accept_friend_request
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     if "vrc_notifications" not in ev.state:
@@ -130,15 +128,11 @@ async def vrc_accept_friend_request(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("忽略", "ignore"))
 async def vrc_ignore_notification(bot: Bot, ev: Event) -> None:
-    from ..utils.api.notifications import mark_notification_as_read
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     if "vrc_notifications" not in ev.state:
@@ -169,15 +163,11 @@ async def vrc_ignore_notification(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("删除通知", "delete_notif"))
 async def vrc_delete_notification(bot: Bot, ev: Event) -> None:
-    from ..utils.api.notifications import delete_notification
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     if "vrc_notifications" not in ev.state:

@@ -1,49 +1,27 @@
-from gsuid_core.sv import SV
 from gsuid_core.bot import Bot
 from gsuid_core.logger import logger
 from gsuid_core.models import Event
+from gsuid_core.sv import SV
 
-from ..utils.api.client import NotLoggedInError, get_client
-
-# from ..utils.database.models import VrChatBind
+from ..utils.api.client import get_client_or_notify
+from ..utils.api.friend import get_all_friends
+from ..utils.api.world import search_worlds
 
 sv = SV("vrc信息")
 
 
-@sv.on_fullmatch(("vrc我的信息", "vrc状态"))
-async def vrc_my_info(bot: Bot, ev: Event) -> None:
-    from ..utils.api.client import get_login_info
-
-    user_id = ev.user_id
-    bot_id = ev.bot_id
-
-    try:
-        login_info = get_login_info(user_id, bot_id)
-        msg = "【VRChat 账号信息】\n\n"
-        msg += f"用户名：{login_info.username}\n"
-        msg += f"显示名称：{login_info.display_name or '未设置'}\n"
-        msg += f"用户ID：{login_info.user_id or '未获取'}\n"
-        await bot.send(msg)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
-
-
 @sv.on_command(("vrc好友", "vrcfl"))
 async def vrc_friend_list(bot: Bot, ev: Event) -> None:
-    from ..utils.api.friend import get_all_friends
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     try:
         await bot.send("正在获取好友列表...")
-        friends = [x async for x in get_all_friends(client, max_size=50)]
+        friends = list(get_all_friends(client, max_size=50))
 
         if not friends:
             await bot.send("您的好友列表为空")
@@ -87,15 +65,11 @@ async def vrc_friend_list(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc搜索世界", "vrcws", "vrcsw"))
 async def vrc_search_world(bot: Bot, ev: Event) -> None:
-    from ..utils.api.world import search_worlds
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     search_term = ev.text.strip()
@@ -105,7 +79,7 @@ async def vrc_search_world(bot: Bot, ev: Event) -> None:
 
     try:
         await bot.send(f"正在搜索「{search_term}」...")
-        worlds = [x async for x in search_worlds(client, search_term, max_size=10)]
+        worlds = list(search_worlds(client, search_term, max_size=10))
 
         if not worlds:
             await bot.send(f"未找到与「{search_term}」相关的世界")

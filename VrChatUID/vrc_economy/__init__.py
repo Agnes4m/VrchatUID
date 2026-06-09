@@ -1,24 +1,28 @@
-from gsuid_core.sv import SV
 from gsuid_core.bot import Bot
 from gsuid_core.logger import logger
 from gsuid_core.models import Event
+from gsuid_core.sv import SV
 
-from ..utils.api.client import NotLoggedInError, get_client
+from ..utils.api.client import get_client_or_notify
+from ..utils.api.economy import (
+    get_balance,
+    get_balance_earnings,
+    get_current_subscriptions,
+    get_current_user_id,
+    get_economy_account,
+    get_tilia_status,
+)
 
 sv = SV("vrc经济")
 
 
 @sv.on_command(("vrc余额", "vrcbalance"))
 async def vrc_balance(bot: Bot, ev: Event) -> None:
-    from ..utils.api.economy import get_balance, get_current_user_id, get_balance_earnings
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     try:
@@ -54,15 +58,11 @@ async def vrc_balance(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc账户", "vrceconomy"))
 async def vrc_economy_account(bot: Bot, ev: Event) -> None:
-    from ..utils.api.economy import get_current_user_id, get_economy_account
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     try:
@@ -99,21 +99,16 @@ async def vrc_economy_account(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc订阅", "vrcsubs"))
 async def vrc_subscriptions(bot: Bot, ev: Event) -> None:
-    from ..utils.api.economy import get_subscriptions, get_current_subscriptions
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     try:
         await bot.send("正在查询订阅信息...")
         current_subs = await get_current_subscriptions(client)
-        all_subs = await get_subscriptions(client)
 
         current_count = 0
         total_count = 0
@@ -123,9 +118,11 @@ async def vrc_subscriptions(bot: Bot, ev: Event) -> None:
             subs = current_subs.get("subscriptions", [])
             current_count = len(subs) if isinstance(subs, list) else 0
 
-        if isinstance(all_subs, list):
-            total_count = len(all_subs)
-            subs_list = all_subs
+        if isinstance(current_subs, dict):
+            all_subs = current_subs.get("subscriptions", [])
+            if isinstance(all_subs, list):
+                total_count = len(all_subs)
+                subs_list = all_subs
 
         msg = "【VRChat 订阅信息】\n\n"
         msg += f"当前订阅数: {current_count}\n"
@@ -152,15 +149,11 @@ async def vrc_subscriptions(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrctilia", "vrctilia状态"))
 async def vrc_tilia_status(bot: Bot, ev: Event) -> None:
-    from ..utils.api.economy import get_tilia_status
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     try:
@@ -196,15 +189,11 @@ async def vrc_tilia_status(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc收益", "vrcearnings"))
 async def vrc_earnings(bot: Bot, ev: Event) -> None:
-    from ..utils.api.economy import get_current_user_id, get_balance_earnings
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     try:

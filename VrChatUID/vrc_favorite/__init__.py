@@ -1,9 +1,18 @@
-from gsuid_core.sv import SV
 from gsuid_core.bot import Bot
 from gsuid_core.logger import logger
 from gsuid_core.models import Event
+from gsuid_core.sv import SV
 
-from ..utils.api.client import NotLoggedInError, get_client
+from ..utils.api.client import get_client_or_notify, get_login_info
+from ..utils.api.favorites import (
+    add_favorite,
+    clear_favorite_group,
+    get_favorite_group,
+    get_favorite_groups,
+    get_favorite_limits,
+    get_favorites,
+    remove_favorite,
+)
 
 sv = SV("vrc收藏")
 
@@ -18,15 +27,11 @@ def format_datetime(dt):
 
 @sv.on_command(("vrc收藏列表", "vrcfl"))
 async def vrc_favorite_list(bot: Bot, ev: Event) -> None:
-    from ..utils.api.favorites import get_favorites
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip().lower()
@@ -34,7 +39,7 @@ async def vrc_favorite_list(bot: Bot, ev: Event) -> None:
 
     try:
         await bot.send(f"正在获取{fav_type}收藏列表...")
-        favorites = [x async for x in get_favorites(client, fav_type, max_size=20)]
+        favorites = list(get_favorites(client, fav_type, max_size=20))
 
         if not favorites:
             await bot.send(f"没有{fav_type}类型的收藏")
@@ -69,20 +74,16 @@ async def vrc_favorite_list(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc收藏组列表", "vrcfgl"))
 async def vrc_favorite_group_list(bot: Bot, ev: Event) -> None:
-    from ..utils.api.favorites import get_favorite_groups
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     try:
         await bot.send("正在获取收藏组列表...")
-        groups = [x async for x in get_favorite_groups(client, max_size=50)]
+        groups = list(get_favorite_groups(client, max_size=50))
 
         if not groups:
             await bot.send("没有收藏组")
@@ -144,15 +145,11 @@ async def vrc_favorite_group_list(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc收藏限制", "vrcflim"))
 async def vrc_favorite_limits(bot: Bot, ev: Event) -> None:
-    from ..utils.api.favorites import get_favorite_limits
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     try:
@@ -191,15 +188,11 @@ async def vrc_favorite_limits(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc添加收藏", "vrcfav"))
 async def vrc_add_favorite(bot: Bot, ev: Event) -> None:
-    from ..utils.api.favorites import add_favorite
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()
@@ -232,15 +225,11 @@ async def vrc_add_favorite(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc删除收藏", "vrcfdel"))
 async def vrc_remove_favorite(bot: Bot, ev: Event) -> None:
-    from ..utils.api.favorites import remove_favorite
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()
@@ -260,16 +249,11 @@ async def vrc_remove_favorite(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc收藏组详情", "vrcfg"))
 async def vrc_favorite_group_detail(bot: Bot, ev: Event) -> None:
-    from ..utils.api.client import get_login_info
-    from ..utils.api.favorites import get_favorite_group
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()
@@ -317,16 +301,11 @@ async def vrc_favorite_group_detail(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("vrc清空收藏组", "vrcfcg"))
 async def vrc_clear_favorite_group(bot: Bot, ev: Event) -> None:
-    from ..utils.api.client import get_login_info
-    from ..utils.api.favorites import clear_favorite_group
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     text = ev.text.strip()

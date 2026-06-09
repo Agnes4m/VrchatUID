@@ -1,24 +1,22 @@
-from gsuid_core.sv import SV
 from gsuid_core.bot import Bot
 from gsuid_core.logger import logger
 from gsuid_core.models import Event
+from gsuid_core.sv import SV
 
-from ..utils.api.client import NotLoggedInError, get_client
+from ..utils.api.client import get_client_or_notify
+from ..utils.api.users import friend as send_friend_request
+from ..utils.api.users import get_friend_status, search_users
 
 sv = SV("vrc搜索用户")
 
 
 @sv.on_command(("vrc搜索用户", "vrcus", "vrcsu"))
 async def vrc_search_user(bot: Bot, ev: Event) -> None:
-    from ..utils.api.users import search_users
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     search_term = ev.text.strip()
@@ -28,7 +26,7 @@ async def vrc_search_user(bot: Bot, ev: Event) -> None:
 
     try:
         await bot.send(f"正在搜索用户「{search_term}」...")
-        users = [x async for x in search_users(client, search_term, max_size=10)]
+        users = list(search_users(client, search_term, max_size=10))
 
         if not users:
             await bot.send(f"未找到与「{search_term}」相关的用户")
@@ -67,15 +65,11 @@ async def vrc_search_user(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("添加", "add"))
 async def vrc_add_friend(bot: Bot, ev: Event) -> None:
-    from ..utils.api.users import friend as send_friend_request, get_friend_status
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     if "vrc_search_users" not in ev.state:
@@ -122,15 +116,11 @@ async def vrc_add_friend(bot: Bot, ev: Event) -> None:
 
 @sv.on_command(("好友状态", "friend_status"))
 async def vrc_friend_status(bot: Bot, ev: Event) -> None:
-    from ..utils.api.users import get_friend_status
-
     user_id = ev.user_id
     bot_id = ev.bot_id
 
-    try:
-        client = await get_client(user_id, bot_id)
-    except NotLoggedInError:
-        await bot.send("您还没有登录 VRChat！请先发送【vrc登录 用户名 密码】")
+    client = await get_client_or_notify(bot, user_id, bot_id)
+    if client is None:
         return
 
     if "vrc_search_users" not in ev.state:
