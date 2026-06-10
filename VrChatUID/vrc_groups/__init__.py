@@ -28,8 +28,10 @@ from ..utils.api.groups import (
     unban_group_member,
     update_group_representation,
 )
+from ..utils.render import render_template
+from ..utils.session_state import get_state, has_state, set_state
 
-sv = SV("vrc群组")
+sv = SV("群组")
 
 
 def format_datetime(dt):
@@ -40,7 +42,7 @@ def format_datetime(dt):
     return str(dt)
 
 
-@sv.on_command(("vrc搜索群组", "vrcsg"))
+@sv.on_command(("搜索群组", "sg"))
 async def vrc_search_group(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -57,13 +59,13 @@ async def vrc_search_group(bot: Bot, ev: Event) -> None:
 
     try:
         await bot.send(f"正在搜索群组「{search_term}」...")
-        groups = list(search_groups(client, search_term, max_size=10))
+        groups = list(search_groups(client, search_term))
 
         if not groups:
             await bot.send(f"未找到与「{search_term}」相关的群组")
             return
 
-        ev.state["vrc_groups"] = groups
+        set_state(ev.session_id, "_groups", groups)
 
         msg = f"【群组搜索结果】找到 {len(groups)} 个群组：\n\n"
 
@@ -98,7 +100,7 @@ async def vrc_join_group(bot: Bot, ev: Event) -> None:
     if client is None:
         return
 
-    if "vrc_groups" not in ev.state:
+    if not has_state(ev.session_id, "_groups"):
         await bot.send("请先使用【vrc搜索群组】搜索群组")
         return
 
@@ -109,7 +111,7 @@ async def vrc_join_group(bot: Bot, ev: Event) -> None:
 
     try:
         index = int(text) - 1
-        groups = ev.state["vrc_groups"]
+        groups = get_state(ev.session_id, "_groups")
         if index < 0 or index >= len(groups):
             await bot.send(f"序号超出范围，请发送 1-{len(groups)} 之间的数字")
             return
@@ -126,7 +128,7 @@ async def vrc_join_group(bot: Bot, ev: Event) -> None:
         await bot.send(f"加入群组失败：{str(e)}")
 
 
-@sv.on_command(("vrc群组信息", "vrcgi"))
+@sv.on_command(("群组信息", "gi"))
 async def vrc_group_info(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -145,58 +147,57 @@ async def vrc_group_info(bot: Bot, ev: Event) -> None:
         await bot.send("正在获取群组信息...")
         group = await get_group(client, group_id)
 
-        msg = "【群组信息】\n\n"
-        msg += f"名称: {getattr(group, 'name', 'Unknown')}\n"
-        msg += f"ID: {getattr(group, 'group_id', '')}\n"
-
+        name = getattr(group, "name", "Unknown")
+        grp_id = getattr(group, "group_id", "")
         short_code = getattr(group, "short_code", "")
         discriminator = getattr(group, "discriminator", "")
+        member_count = getattr(group, "member_count", 0)
+        online_count = getattr(group, "online_member_count", 0)
+        description = getattr(group, "description", "") or "无"
+        privacy = getattr(group, "privacy", "未知")
+        join_state = getattr(group, "join_state", "未知")
+        languages = ", ".join(getattr(group, "languages", []) or []) or "未知"
+
+        # 降级文本
+        fallback = "【群组信息】\n\n"
+        fallback += f"名称: {name}\n"
+        fallback += f"ID: {grp_id}\n"
         if short_code and discriminator:
-            msg += f"短代码: {short_code}#{discriminator}\n"
-
-        msg += f"成员数: {getattr(group, 'member_count', 0)}\n"
-        msg += f"在线成员: {getattr(group, 'online_member_count', 0)}\n"
-
-        description = getattr(group, "description", "")
+            fallback += f"短代码: {short_code}#{discriminator}\n"
+        fallback += f"成员数: {member_count}\n"
+        fallback += f"在线成员: {online_count}\n"
         if description:
-            msg += f"描述: {description}\n"
-
-        privacy = getattr(group, "privacy", "")
-        if privacy:
-            msg += f"隐私: {privacy}\n"
-
-        join_state = getattr(group, "join_state", "")
-        if join_state:
-            msg += f"加入状态: {join_state}\n"
-
-        languages = getattr(group, "languages", [])
+            fallback += f"描述: {description}\n"
+        fallback += f"隐私: {privacy}\n"
+        fallback += f"加入状态: {join_state}\n"
         if languages:
-            msg += f"语言: {', '.join(languages)}\n"
+            fallback += f"语言: {languages}\n"
 
-        icon_url = getattr(group, "icon_url", "")
-        if icon_url:
-            msg += f"图标: {icon_url}\n"
-
-        banner_url = getattr(group, "banner_url", "")
-        if banner_url:
-            msg += f"横幅: {banner_url}\n"
-
-        owner_id = getattr(group, "owner_id", "")
-        if owner_id:
-            msg += f"所有者: {owner_id}\n"
-
-        membership_status = getattr(group, "membership_status", "")
-        if membership_status:
-            msg += f"成员状态: {membership_status}\n"
-
-        await bot.send(msg)
+        try:
+            image_bytes = await render_template(
+                "group_info.html",
+                name=name,
+                group_id=grp_id,
+                short_code=short_code or "----",
+                discriminator=discriminator or "----",
+                member_count=member_count,
+                online_count=online_count,
+                privacy=privacy,
+                join_state=join_state,
+                languages=languages,
+                description=description[:200],
+            )
+            await bot.send(image_bytes)
+        except Exception as e:
+            logger.warning(f"群组信息图片渲染失败，降级到文本: {e}")
+            await bot.send(fallback)
 
     except Exception as e:
         logger.error(f"获取群组信息失败: {e}")
         await bot.send(f"获取群组信息失败：{str(e)}")
 
 
-@sv.on_command(("vrc群组成员", "vrcgm"))
+@sv.on_command(("群组成员", "gm"))
 async def vrc_group_members(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -251,7 +252,7 @@ async def vrc_group_members(bot: Bot, ev: Event) -> None:
         await bot.send(f"获取群组成员失败：{str(e)}")
 
 
-@sv.on_command(("vrc群组角色", "vrcgr"))
+@sv.on_command(("群组角色", "gr"))
 async def vrc_group_roles(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -325,7 +326,7 @@ async def vrc_group_roles(bot: Bot, ev: Event) -> None:
         await bot.send(f"获取群组角色失败：{str(e)}")
 
 
-@sv.on_command(("vrc群组公告", "vrcga"))
+@sv.on_command(("群组公告", "ga"))
 async def vrc_group_announcement(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -376,7 +377,7 @@ async def vrc_group_announcement(bot: Bot, ev: Event) -> None:
         await bot.send(f"获取群组公告失败：{str(e)}")
 
 
-@sv.on_command(("vrc离开群组", "vrclg"))
+@sv.on_command(("离开群组", "lg"))
 async def vrc_leave_group(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -401,7 +402,7 @@ async def vrc_leave_group(bot: Bot, ev: Event) -> None:
         await bot.send(f"离开群组失败：{str(e)}")
 
 
-@sv.on_command(("vrc群组请求", "vrcgreq"))
+@sv.on_command(("群组请求", "greq"))
 async def vrc_group_requests(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -448,14 +449,14 @@ async def vrc_group_requests(bot: Bot, ev: Event) -> None:
         msg += "\n发送【处理请求 序号 accept/reject】审批请求"
         await bot.send(msg)
 
-        ev.state["vrc_group_requests"] = requests
+        set_state(ev.session_id, "_group_requests", requests)
 
     except Exception as e:
         logger.error(f"获取群组请求失败: {e}")
         await bot.send(f"获取群组请求失败：{str(e)}")
 
 
-@sv.on_command(("vrc处理请求", "vrcgpjr"))
+@sv.on_command(("处理请求", "gpjr"))
 async def vrc_process_join_request(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -465,7 +466,7 @@ async def vrc_process_join_request(bot: Bot, ev: Event) -> None:
     if client is None:
         return
 
-    if "vrc_group_requests" not in ev.state:
+    if not has_state(ev.session_id, "_group_requests"):
         await bot.send("请先使用【vrc群组请求】查看请求列表")
         return
 
@@ -480,7 +481,7 @@ async def vrc_process_join_request(bot: Bot, ev: Event) -> None:
         action = parts[1].lower()
         accept = action == "accept"
 
-        requests = ev.state["vrc_group_requests"]
+        requests = get_state(ev.session_id, "_group_requests")
         if index < 0 or index >= len(requests):
             await bot.send(f"序号超出范围，请发送 1-{len(requests)} 之间的数字")
             return
@@ -493,7 +494,7 @@ async def vrc_process_join_request(bot: Bot, ev: Event) -> None:
             return
 
         await bot.send("正在处理请求...")
-        await respond_to_group_join_request(client, ev.state.get("vrc_group_id", ""), target_user_id, accept)
+        await respond_to_group_join_request(client, get_state(ev.session_id, "_group_id", ""), target_user_id, accept)
 
         action_text = "接受" if accept else "拒绝"
         await bot.send(f"已{action_text}用户 {target_user_id} 的加入请求")
@@ -503,7 +504,7 @@ async def vrc_process_join_request(bot: Bot, ev: Event) -> None:
         await bot.send(f"处理请求失败：{str(e)}")
 
 
-@sv.on_command(("vrc邀请用户", "vrcgui"))
+@sv.on_command(("邀请用户", "gui"))
 async def vrc_invite_user(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -532,7 +533,7 @@ async def vrc_invite_user(bot: Bot, ev: Event) -> None:
         await bot.send(f"邀请用户失败：{str(e)}")
 
 
-@sv.on_command(("vrc踢出成员", "vrcgmk"))
+@sv.on_command(("踢出成员", "gmk"))
 async def vrc_kick_member(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -561,7 +562,7 @@ async def vrc_kick_member(bot: Bot, ev: Event) -> None:
         await bot.send(f"踢出成员失败：{str(e)}")
 
 
-@sv.on_command(("vrc封禁成员", "vrcgbm"))
+@sv.on_command(("封禁成员", "gbm"))
 async def vrc_ban_member(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -590,7 +591,7 @@ async def vrc_ban_member(bot: Bot, ev: Event) -> None:
         await bot.send(f"封禁成员失败：{str(e)}")
 
 
-@sv.on_command(("vrc解除封禁", "vrcgub"))
+@sv.on_command(("解除封禁", "gub"))
 async def vrc_unban_member(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -619,7 +620,7 @@ async def vrc_unban_member(bot: Bot, ev: Event) -> None:
         await bot.send(f"解除封禁失败：{str(e)}")
 
 
-@sv.on_command(("vrc封禁列表", "vrcgb"))
+@sv.on_command(("封禁列表", "gb"))
 async def vrc_group_bans(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -665,7 +666,7 @@ async def vrc_group_bans(bot: Bot, ev: Event) -> None:
         await bot.send(f"获取封禁列表失败：{str(e)}")
 
 
-@sv.on_command(("vrc审计日志", "vrcgal"))
+@sv.on_command(("审计日志", "gal"))
 async def vrc_group_audit_logs(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -717,7 +718,7 @@ async def vrc_group_audit_logs(bot: Bot, ev: Event) -> None:
         await bot.send(f"获取审计日志失败：{str(e)}")
 
 
-@sv.on_command(("vrc群组实例", "vrcgi2"))
+@sv.on_command(("群组实例", "gi2"))
 async def vrc_group_instances(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -767,7 +768,7 @@ async def vrc_group_instances(bot: Bot, ev: Event) -> None:
         await bot.send(f"获取群组实例失败：{str(e)}")
 
 
-@sv.on_command(("vrc我的群组信息", "vrcmgm"))
+@sv.on_command(("我的群组信息", "mgm"))
 async def vrc_my_group_member(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -830,7 +831,7 @@ async def vrc_my_group_member(bot: Bot, ev: Event) -> None:
         await bot.send(f"获取我的群组成员信息失败：{str(e)}")
 
 
-@sv.on_command(("vrc更新群组代表", "vrcugr"))
+@sv.on_command(("更新群组代表", "ugr"))
 async def vrc_update_group_rep(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -865,7 +866,7 @@ async def vrc_update_group_rep(bot: Bot, ev: Event) -> None:
         await bot.send(f"更新群组代表身份失败：{str(e)}")
 
 
-@sv.on_command(("vrc创建公告", "vrcgca"))
+@sv.on_command(("创建公告", "gca"))
 async def vrc_create_announcement(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -896,7 +897,7 @@ async def vrc_create_announcement(bot: Bot, ev: Event) -> None:
         await bot.send(f"创建公告失败：{str(e)}")
 
 
-@sv.on_command(("vrc帖子列表", "vrcgpl"))
+@sv.on_command(("帖子列表", "gpl"))
 async def vrc_group_posts(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id
@@ -946,7 +947,7 @@ async def vrc_group_posts(bot: Bot, ev: Event) -> None:
         await bot.send(f"获取帖子列表失败：{str(e)}")
 
 
-@sv.on_command(("vrc创建帖子", "vrcgcp"))
+@sv.on_command(("创建帖子", "gcp"))
 async def vrc_create_post(bot: Bot, ev: Event) -> None:
 
     user_id = ev.user_id

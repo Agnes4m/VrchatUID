@@ -1,5 +1,4 @@
 import asyncio
-import json
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from http.cookiejar import LWPCookieJar
@@ -40,45 +39,16 @@ class TwoFactorAuthError(Exception):
         self.verify_func = verify_func
 
 
-class LoginInfo:
-    def __init__(
-        self,
-        username: str = "",
-        password: str = "",
-        user_id: str = "",
-        display_name: str = "",
-    ):
-        self.username = username
-        self.password = password
-        self.user_id = user_id
-        self.display_name = display_name
-
-    def to_json(self) -> str:
-        return json.dumps(
-            {
-                "username": self.username,
-                "password": self.password,
-                "user_id": self.user_id,
-                "display_name": self.display_name,
-            }
-        )
-
-    @classmethod
-    def from_json(cls, json_str: str) -> "LoginInfo":
-        data = json.loads(json_str)
-        return cls(**data)
-
-
-def save_client_cookies(client: ApiClient, user_id: str, bot_id: str):
-    path = PLAYER_PATH / f"{bot_id}_{user_id}.cookies"
+def save_client_cookies(client: ApiClient, bot_id: str, user_id: str, vrc_uid: str):
+    path = PLAYER_PATH / f"{bot_id}_{user_id}_{vrc_uid}.cookies"
     cookie_jar = LWPCookieJar(filename=str(path))
     for cookie in client.rest_client.cookie_jar:
         cookie_jar.set_cookie(cookie)
     cookie_jar.save()
 
 
-def load_cookies_to_client(client: ApiClient, user_id: str, bot_id: str):
-    path = PLAYER_PATH / f"{bot_id}_{user_id}.cookies"
+def load_cookies_to_client(client: ApiClient, user_id: str, bot_id: str, vrc_uid: str):
+    path = PLAYER_PATH / f"{bot_id}_{user_id}_{vrc_uid}.cookies"
     if not path.exists():
         raise NotLoggedInError("未找到登录信息，请先登录！")
     cookie_jar = LWPCookieJar(filename=str(path))
@@ -87,29 +57,10 @@ def load_cookies_to_client(client: ApiClient, user_id: str, bot_id: str):
         client.rest_client.cookie_jar.set_cookie(cookie)
 
 
-def remove_cookies(user_id: str, bot_id: str):
-    path = PLAYER_PATH / f"{bot_id}_{user_id}.cookies"
+def remove_cookies(bot_id: str, user_id: str, vrc_uid: str):
+    path = PLAYER_PATH / f"{bot_id}_{user_id}_{vrc_uid}.cookies"
     if path.exists():
         path.unlink()
-
-
-def save_login_info(user_id: str, bot_id: str, login_info: LoginInfo):
-    info_path = PLAYER_PATH / f"{bot_id}_{user_id}.json"
-    info_path.write_text(login_info.to_json(), encoding="utf-8")
-
-
-def get_login_info(user_id: str, bot_id: str) -> LoginInfo:
-    info_path = PLAYER_PATH / f"{bot_id}_{user_id}.json"
-    if not info_path.exists():
-        raise NotLoggedInError("未找到登录信息，请先登录！")
-    return LoginInfo.from_json(info_path.read_text(encoding="utf-8"))
-
-
-def remove_login_info(user_id: str, bot_id: str):
-    info_path = PLAYER_PATH / f"{bot_id}_{user_id}.json"
-    if info_path.exists():
-        info_path.unlink()
-    remove_cookies(user_id, bot_id)
 
 
 def _create_client(username: str, password: str) -> ApiClient:
@@ -125,10 +76,18 @@ def _create_client(username: str, password: str) -> ApiClient:
 
 
 async def get_client(user_id: str, bot_id: str) -> ApiClient:
-    login_info = get_login_info(user_id, bot_id)
-    client = _create_client(login_info.username, login_info.password)
+    """从 VrChatUser 表读取当前活跃账号的凭证，创建 API 客户端"""
+    from ..database import get_user_credentials
+
+    cred = await get_user_credentials(user_id, bot_id)
+    if cred is None:
+        raise NotLoggedInError("未找到登录信息，请先登录！")
+    if not cred.username or not cred.password:
+        raise NotLoggedInError("凭证不完整，请重新登录！")
+
+    client = _create_client(cred.username, cred.password)
     with suppress(NotLoggedInError):
-        load_cookies_to_client(client, user_id, bot_id)
+        load_cookies_to_client(client, user_id, bot_id, cred.vrc_uid)
     return client
 
 
@@ -179,21 +138,37 @@ async def login_via_password(
     client = _create_client(username, password)
     api = AuthenticationApi(client)
 
-    def _save_user_info(current_user: "CurrentUser"):
-        """保存用户信息"""
-        login_info = LoginInfo(
+    async def _save_user_info(current_user: "CurrentUser"):
+        """保存用户信息：提取 cookies + 写文件 + 写数据库"""
+        from ..database import extract_cookies_from_client, save_credentials
+
+        vrc_uid = str(current_user.id) if current_user.id else ""
+        display_name = str(current_user.display_name) if current_user.display_name else ""
+
+        # 从已认证的 client 提取 cookie 字符串
+        cookie_str = extract_cookies_from_client(client)
+        logger.info(f"VRC 登录成功: vrc_uid={vrc_uid}, display_name={display_name}, cookie_len={len(cookie_str)}")
+
+        await save_credentials(
+            user_id=user_id,
+            bot_id=bot_id,
+            vrc_uid=vrc_uid,
             username=username,
             password=password,
-            user_id=str(current_user.id) if current_user.id else "",
-            display_name=str(current_user.display_name) if current_user.display_name else "",
+            cookie=cookie_str,
+            display_name=display_name,
+            vrc_user_id=vrc_uid,
         )
-        save_login_info(user_id, bot_id, login_info)
-        save_client_cookies(client, user_id, bot_id)
+        if vrc_uid:
+            save_client_cookies(client, bot_id, user_id, vrc_uid)
 
     # 尝试获取当前用户信息
     try:
         current_user = await asyncio.to_thread(api.get_current_user)
-        _save_user_info(current_user)
+        from ._helpers import log_api_response
+
+        log_api_response("login_via_password.get_current_user", current_user)
+        await _save_user_info(current_user)
         return current_user
 
     except UnauthorizedException as e:
@@ -215,7 +190,10 @@ async def login_via_password(
                         two_factor_auth_code=TwoFactorAuthCode(auth_code),
                     )
                 current_user = await asyncio.to_thread(api.get_current_user)
-                _save_user_info(current_user)
+                from ._helpers import log_api_response
+
+                log_api_response("login_via_password.verify_two_fa", current_user)
+                await _save_user_info(current_user)
                 return current_user
 
             raise TwoFactorAuthError(verify_two_fa) from e

@@ -13,10 +13,10 @@ from ..utils.api.economy import (
     get_tilia_status,
 )
 
-sv = SV("vrc经济")
+sv = SV("经济")
 
 
-@sv.on_command(("vrc余额", "vrcbalance"))
+@sv.on_command(("余额", "balance"))
 async def vrc_balance(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -56,7 +56,7 @@ async def vrc_balance(bot: Bot, ev: Event) -> None:
         await bot.send(f"查询余额失败：{str(e)}")
 
 
-@sv.on_command(("vrc账户", "vrceconomy"))
+@sv.on_command(("账户", "economy"))
 async def vrc_economy_account(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -97,7 +97,7 @@ async def vrc_economy_account(bot: Bot, ev: Event) -> None:
         await bot.send(f"查询账户信息失败：{str(e)}")
 
 
-@sv.on_command(("vrc订阅", "vrcsubs"))
+@sv.on_command(("订阅", "subs"))
 async def vrc_subscriptions(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -147,7 +147,7 @@ async def vrc_subscriptions(bot: Bot, ev: Event) -> None:
         await bot.send(f"查询订阅信息失败：{str(e)}")
 
 
-@sv.on_command(("vrctilia", "vrctilia状态"))
+@sv.on_command(("tilia", "tilia状态"))
 async def vrc_tilia_status(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -187,7 +187,7 @@ async def vrc_tilia_status(bot: Bot, ev: Event) -> None:
         await bot.send(f"查询Tilia状态失败：{str(e)}")
 
 
-@sv.on_command(("vrc收益", "vrcearnings"))
+@sv.on_command(("收益", "earnings"))
 async def vrc_earnings(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id

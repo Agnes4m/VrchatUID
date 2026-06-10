@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>VRChat 群组信息</title>
+</head>
+<body>
+<div class="container">
+    <h1 class="title">{{ name }}</h1>
+    <p class="subtitle">{{ short_code }}#{{ discriminator }}</p>
+
+    <div class="info-row">
+        <span class="info-label">群组 ID</span>
+        <span class="info-value">{{ group_id }}</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">成员数</span>
+        <span class="info-value">{{ member_count }} ({{ online_count }} 在线)</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">隐私</span>
+        <span class="info-value">{{ privacy }}</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">加入状态</span>
+        <span class="info-value">{{ join_state }}</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">语言</span>
+        <span class="info-value">{{ languages }}</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">描述</span>
+        <span class="info-value">{{ description }}</span>
+    </div>
+
+    <div class="footer">From VRChat API · VrChatUID Plugin</div>
+</div>
+</body>
+</html>

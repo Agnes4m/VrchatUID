@@ -1,3 +1,3 @@
-from .database.models import VrChatBind
+from .database.models import VrChatBind, VrChatUser
 
-__all__ = ["VrChatBind"]
+__all__ = ["VrChatBind", "VrChatUser"]

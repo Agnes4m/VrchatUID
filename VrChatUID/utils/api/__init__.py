@@ -6,8 +6,6 @@ __all__ = [
     "TwoFactorAuthError",
     "get_client",
     "get_client_or_notify",
-    "get_login_info",
-    "remove_login_info",
     "login_via_password",
     "get_current_user_info",
     # friend
@@ -86,9 +84,7 @@ from .client import (
     get_client,
     get_client_or_notify,
     get_current_user_info,
-    get_login_info,
     login_via_password,
-    remove_login_info,
 )
 from .economy import (
     get_balance,

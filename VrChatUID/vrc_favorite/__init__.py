@@ -3,7 +3,7 @@ from gsuid_core.logger import logger
 from gsuid_core.models import Event
 from gsuid_core.sv import SV
 
-from ..utils.api.client import get_client_or_notify, get_login_info
+from ..utils.api.client import get_client_or_notify
 from ..utils.api.favorites import (
     add_favorite,
     clear_favorite_group,
@@ -13,8 +13,11 @@ from ..utils.api.favorites import (
     get_favorites,
     remove_favorite,
 )
+from ..utils.database import get_user_credentials
+from ..utils.render import build_favorite_card, render_template
+from ..utils.session_state import get_state, has_state, set_state
 
-sv = SV("vrc收藏")
+sv = SV("收藏")
 
 
 def format_datetime(dt):
@@ -25,7 +28,7 @@ def format_datetime(dt):
     return str(dt)
 
 
-@sv.on_command(("vrc收藏列表", "vrcfl"))
+@sv.on_command(("收藏列表", "fl"))
 async def vrc_favorite_list(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -45,34 +48,46 @@ async def vrc_favorite_list(bot: Bot, ev: Event) -> None:
             await bot.send(f"没有{fav_type}类型的收藏")
             return
 
-        ev.state["vrc_favorites"] = favorites
-        ev.state["vrc_favorite_type"] = fav_type
+        set_state(ev.session_id, "_favorites", favorites)
+        set_state(ev.session_id, "_favorite_type", fav_type)
 
-        msg = f"【{fav_type}收藏列表】共 {len(favorites)} 个：\n\n"
-
+        # 降级文本
+        fallback = f"【{fav_type}收藏列表】共 {len(favorites)} 个：\n\n"
         for i, fav in enumerate(favorites[:20], 1):
             fav_id_ref = getattr(fav, "favorite_id_ref", "Unknown")
             group = getattr(fav, "group", "default")
             tags = getattr(fav, "tags", [])
             updated_at = format_datetime(getattr(fav, "updated_at", None))
 
-            msg += f"{i}. ID: {fav_id_ref}\n"
-            msg += f"   收藏组: {group}\n"
+            fallback += f"{i}. ID: {fav_id_ref}\n"
+            fallback += f"   收藏组: {group}\n"
             if tags:
-                msg += f"   标签: {', '.join(tags)}\n"
-            msg += f"   更新时间: {updated_at}\n\n"
+                fallback += f"   标签: {', '.join(tags)}\n"
+            fallback += f"   更新时间: {updated_at}\n\n"
 
-        msg += "发送【详情 序号】查看收藏详情\n"
-        msg += "发送【删除 序号】删除收藏"
+        fallback += "发送【详情 序号】查看收藏详情\n"
+        fallback += "发送【删除 序号】删除收藏"
 
-        await bot.send(msg)
+        # 渲染图片
+        try:
+            fav_cards = "".join(build_favorite_card(i, f) for i, f in enumerate(favorites, 1))
+            image_bytes = await render_template(
+                "favorite_list.html",
+                fav_type=fav_type,
+                total_count=len(favorites),
+                fav_cards=fav_cards,
+            )
+            await bot.send(image_bytes)
+        except Exception as e:
+            logger.warning(f"收藏列表图片渲染失败，降级到文本: {e}")
+            await bot.send(fallback)
 
     except Exception as e:
         logger.error(f"获取收藏列表失败: {e}")
         await bot.send(f"获取收藏列表失败：{str(e)}")
 
 
-@sv.on_command(("vrc收藏组列表", "vrcfgl"))
+@sv.on_command(("收藏组列表", "fgl"))
 async def vrc_favorite_group_list(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -143,7 +158,7 @@ async def vrc_favorite_group_list(bot: Bot, ev: Event) -> None:
         await bot.send(f"获取收藏组列表失败：{str(e)}")
 
 
-@sv.on_command(("vrc收藏限制", "vrcflim"))
+@sv.on_command(("收藏限制", "flim"))
 async def vrc_favorite_limits(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -186,7 +201,7 @@ async def vrc_favorite_limits(bot: Bot, ev: Event) -> None:
         await bot.send(f"获取收藏限制失败：{str(e)}")
 
 
-@sv.on_command(("vrc添加收藏", "vrcfav"))
+@sv.on_command(("添加收藏", "fav"))
 async def vrc_add_favorite(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -223,7 +238,7 @@ async def vrc_add_favorite(bot: Bot, ev: Event) -> None:
         await bot.send(f"添加收藏失败：{str(e)}")
 
 
-@sv.on_command(("vrc删除收藏", "vrcfdel"))
+@sv.on_command(("删除收藏", "fdel"))
 async def vrc_remove_favorite(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -247,7 +262,7 @@ async def vrc_remove_favorite(bot: Bot, ev: Event) -> None:
         await bot.send(f"删除收藏失败：{str(e)}")
 
 
-@sv.on_command(("vrc收藏组详情", "vrcfg"))
+@sv.on_command(("收藏组详情", "fg"))
 async def vrc_favorite_group_detail(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -270,8 +285,8 @@ async def vrc_favorite_group_detail(bot: Bot, ev: Event) -> None:
     group_name = parts[1]
 
     try:
-        login_info = get_login_info(user_id, bot_id)
-        owner_id = login_info.user_id
+        cred = await get_user_credentials(user_id, bot_id)
+        owner_id = cred.vrc_uid if cred else ""
     except Exception:
         owner_id = ""
 
@@ -299,7 +314,7 @@ async def vrc_favorite_group_detail(bot: Bot, ev: Event) -> None:
         await bot.send(f"获取收藏组详情失败：{str(e)}")
 
 
-@sv.on_command(("vrc清空收藏组", "vrcfcg"))
+@sv.on_command(("清空收藏组", "fcg"))
 async def vrc_clear_favorite_group(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -322,8 +337,8 @@ async def vrc_clear_favorite_group(bot: Bot, ev: Event) -> None:
     group_name = parts[1]
 
     try:
-        login_info = get_login_info(user_id, bot_id)
-        owner_id = login_info.user_id
+        cred = await get_user_credentials(user_id, bot_id)
+        owner_id = cred.vrc_uid if cred else ""
     except Exception:
         owner_id = ""
 

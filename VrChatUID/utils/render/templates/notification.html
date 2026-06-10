@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>VRChat 通知</title>
+</head>
+<body>
+<div class="container">
+    <h1 class="title">通知中心</h1>
+    <p class="subtitle">共 {{ total_count }} 条通知</p>
+
+    {{ request_section }}
+    {{ other_section }}
+
+    <div class="tip">
+        <div class="tip-title">操作提示</div>
+        • 发送 <b>接受 序号</b> 接受好友请求<br>
+        • 发送 <b>忽略 序号</b> 忽略该通知<br>
+        • 发送 <b>删除通知 序号</b> 删除该通知
+    </div>
+
+    <div class="footer">From VRChat API · VrChatUID Plugin</div>
+</div>
+</body>
+</html>

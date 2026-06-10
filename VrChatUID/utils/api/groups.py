@@ -4,53 +4,72 @@ from vrchatapi import ApiClient
 from vrchatapi.api import GroupsApi
 from vrchatapi.models import (
     CreateGroupAnnouncementRequest,
+    CreateGroupInviteRequest,
     CreateGroupPostRequest,
-    GroupInviteRequest,
     JoinGroupRequest,
 )
 
+from ...vrc_config import get_search_group_max_size
+from ._helpers import log_api_response
 
-def search_groups(client: ApiClient, keyword: str, max_size: int = 10):
-    """搜索群组（同步生成器）"""
+
+def search_groups(client: ApiClient, keyword: str, max_size: int | None = None):
+    """搜索群组（同步生成器）
+
+    Args:
+        max_size: 最大返回数；为 None 时从 vrc_config 读取
+    """
+    if max_size is None:
+        max_size = get_search_group_max_size()
     api = GroupsApi(client)
+    page_size = 20
     offset = 0
-    count = 0
-    while count < max_size:
-        groups = api.search_groups(query=keyword, offset=offset, n=20)
+    yielded = 0
+    while yielded < max_size:
+        groups = api.search_groups(query=keyword, offset=offset, n=page_size)
+        log_api_response(f"search_groups(query={keyword}, offset={offset})", groups)
         if not groups:
             break
         for group in groups:
+            if yielded >= max_size:
+                return
             yield group
-            count += 1
-            if count >= max_size:
-                break
-        if len(groups) < 20:
+            yielded += 1
+        if len(groups) < page_size:
             break
-        offset += 20
+        offset += page_size
 
 
 async def get_group(client: ApiClient, group_id: str):
     """获取群组信息"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group, group_id=group_id)
+    result = await asyncio.to_thread(api.get_group, group_id=group_id)
+    log_api_response(f"get_group({group_id})", result)
+    return result
 
 
 async def get_group_members(client: ApiClient, group_id: str, n: int = 20, offset: int = 0):
     """获取群组成员列表"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_members, group_id=group_id, n=n, offset=offset)
+    result = await asyncio.to_thread(api.get_group_members, group_id=group_id, n=n, offset=offset)
+    log_api_response(f"get_group_members({group_id})", result)
+    return result
 
 
 async def get_group_roles(client: ApiClient, group_id: str):
     """获取群组角色列表"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_roles, group_id=group_id)
+    result = await asyncio.to_thread(api.get_group_roles, group_id=group_id)
+    log_api_response(f"get_group_roles({group_id})", result)
+    return result
 
 
 async def get_group_announcements(client: ApiClient, group_id: str):
     """获取群组公告"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_announcements, group_id=group_id)
+    result = await asyncio.to_thread(api.get_group_announcements, group_id=group_id)
+    log_api_response(f"get_group_announcements({group_id})", result)
+    return result
 
 
 async def join_group(client: ApiClient, group_id: str):
@@ -75,25 +94,33 @@ async def leave_group(client: ApiClient, group_id: str):
 async def get_group_invites(client: ApiClient, group_id: str, n: int = 20, offset: int = 0):
     """获取群组邀请列表"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_invites, group_id=group_id, n=n, offset=offset)
+    result = await asyncio.to_thread(api.get_group_invites, group_id=group_id, n=n, offset=offset)
+    log_api_response(f"get_group_invites({group_id})", result)
+    return result
 
 
 async def get_group_requests(client: ApiClient, group_id: str, n: int = 20, offset: int = 0):
     """获取群组请求列表"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_requests, group_id=group_id, n=n, offset=offset)
+    result = await asyncio.to_thread(api.get_group_requests, group_id=group_id, n=n, offset=offset)
+    log_api_response(f"get_group_requests({group_id})", result)
+    return result
 
 
 async def get_group_instances(client: ApiClient, group_id: str):
     """获取群组实例列表"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_instances, group_id=group_id)
+    result = await asyncio.to_thread(api.get_group_instances, group_id=group_id)
+    log_api_response(f"get_group_instances({group_id})", result)
+    return result
 
 
 async def get_group_permissions(client: ApiClient, group_id: str):
     """获取群组权限信息"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_permissions, group_id=group_id)
+    result = await asyncio.to_thread(api.get_group_permissions, group_id=group_id)
+    log_api_response(f"get_group_permissions({group_id})", result)
+    return result
 
 
 async def kick_group_member(client: ApiClient, group_id: str, user_id: str):
@@ -123,11 +150,13 @@ async def create_group_announcement(
     """创建群组公告"""
     api = GroupsApi(client)
     request = CreateGroupAnnouncementRequest(title=title, text=text, image_url=image_url)
-    return await asyncio.to_thread(
+    result = await asyncio.to_thread(
         api.create_group_announcement,
         group_id=group_id,
         create_group_announcement_request=request,
     )
+    log_api_response(f"create_group_announcement({group_id}, {title})", result)
+    return result
 
 
 async def delete_group_announcement(client: ApiClient, group_id: str, announcement_id: str):
@@ -140,14 +169,18 @@ async def delete_group_announcement(client: ApiClient, group_id: str, announceme
 async def get_group_posts(client: ApiClient, group_id: str, n: int = 20, offset: int = 0):
     """获取群组帖子列表"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_posts, group_id=group_id, n=n, offset=offset)
+    result = await asyncio.to_thread(api.get_group_posts, group_id=group_id, n=n, offset=offset)
+    log_api_response(f"get_group_posts({group_id})", result)
+    return result
 
 
 async def create_group_post(client: ApiClient, group_id: str, title: str, text: str):
     """创建群组帖子"""
     api = GroupsApi(client)
     request = CreateGroupPostRequest(title=title, text=text)
-    return await asyncio.to_thread(api.create_group_post, group_id=group_id, create_group_post_request=request)
+    result = await asyncio.to_thread(api.create_group_post, group_id=group_id, create_group_post_request=request)
+    log_api_response(f"create_group_post({group_id}, {title})", result)
+    return result
 
 
 async def delete_group_post(client: ApiClient, group_id: str, post_id: str):
@@ -160,13 +193,17 @@ async def delete_group_post(client: ApiClient, group_id: str, post_id: str):
 async def get_group_gallery(client: ApiClient, group_id: str):
     """获取群组画廊信息"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_gallery, group_id=group_id)
+    result = await asyncio.to_thread(api.get_group_gallery, group_id=group_id)
+    log_api_response(f"get_group_gallery({group_id})", result)
+    return result
 
 
 async def get_group_gallery_images(client: ApiClient, group_id: str, n: int = 20, offset: int = 0):
     """获取群组画廊图片列表"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_gallery_images, group_id=group_id, n=n, offset=offset)
+    result = await asyncio.to_thread(api.get_group_gallery_images, group_id=group_id, n=n, offset=offset)
+    log_api_response(f"get_group_gallery_images({group_id})", result)
+    return result
 
 
 async def invite_user_to_group(client: ApiClient, group_id: str, user_id: str):
@@ -175,7 +212,7 @@ async def invite_user_to_group(client: ApiClient, group_id: str, user_id: str):
     await asyncio.to_thread(
         api.invite_user_to_group,
         group_id=group_id,
-        group_invite_request=GroupInviteRequest(user_id=user_id),
+        group_invite_request=CreateGroupInviteRequest(user_id=user_id),
     )
     return True
 
@@ -209,7 +246,9 @@ async def cancel_group_join_request(client: ApiClient, group_id: str):
 async def get_group_bans(client: ApiClient, group_id: str, n: int = 20, offset: int = 0):
     """获取群组封禁列表"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_bans, group_id=group_id, n=n, offset=offset)
+    result = await asyncio.to_thread(api.get_group_bans, group_id=group_id, n=n, offset=offset)
+    log_api_response(f"get_group_bans({group_id})", result)
+    return result
 
 
 async def ban_group_member(client: ApiClient, group_id: str, user_id: str):
@@ -229,7 +268,9 @@ async def unban_group_member(client: ApiClient, group_id: str, user_id: str):
 async def get_group_audit_logs(client: ApiClient, group_id: str, n: int = 20, offset: int = 0):
     """获取群组审计日志"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_group_audit_logs, group_id=group_id, n=n, offset=offset)
+    result = await asyncio.to_thread(api.get_group_audit_logs, group_id=group_id, n=n, offset=offset)
+    log_api_response(f"get_group_audit_logs({group_id})", result)
+    return result
 
 
 async def update_group_representation(client: ApiClient, group_id: str, represent: bool):
@@ -242,4 +283,6 @@ async def update_group_representation(client: ApiClient, group_id: str, represen
 async def get_my_group_member(client: ApiClient, group_id: str):
     """获取当前用户在群组中的成员信息"""
     api = GroupsApi(client)
-    return await asyncio.to_thread(api.get_my_group_member, group_id=group_id)
+    result = await asyncio.to_thread(api.get_my_group_member, group_id=group_id)
+    log_api_response(f"get_my_group_member({group_id})", result)
+    return result

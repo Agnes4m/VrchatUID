@@ -1,0 +1,362 @@
+{
+    "认证": {
+        "desc": "VRChat 账号管理（登录/绑定/切换/删除，参考 DeltaUID 写法）",
+        "data": [
+            {
+                "name": "登录账号",
+                "desc": "登录 VRChat 账号（支持 2FA），首次登录自动绑定",
+                "eg": "登录 用户名 密码",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "绑定账号",
+                "desc": "查看已绑定的 VRChat 账号列表",
+                "eg": "绑定",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "切换账号",
+                "desc": "在多个绑定的 VRChat 账号间切换",
+                "eg": "切换 <序号/uid>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "删除账号",
+                "desc": "解绑指定 VRChat 账号",
+                "eg": "删除 <uid>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "注销全部",
+                "desc": "注销所有 VRChat 账号",
+                "eg": "注销",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "我的信息",
+                "desc": "查看当前 VRChat 账号信息与已绑定列表",
+                "eg": "我的信息",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            }
+        ]
+    },
+    "好友": {
+        "desc": "查看 VRChat 好友列表（在线/离线）",
+        "data": [
+            {
+                "name": "好友列表",
+                "desc": "查看所有 VRChat 好友",
+                "eg": "好友",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            }
+        ]
+    },
+    "用户": {
+        "desc": "搜索 VRChat 用户、发送好友请求",
+        "data": [
+            {
+                "name": "搜索用户",
+                "desc": "按名称搜索 VRChat 用户",
+                "eg": "搜索用户 关键词",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "添加好友",
+                "desc": "向搜索结果中的用户发送好友请求",
+                "eg": "添加 <序号>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "好友状态",
+                "desc": "查询与目标用户的好友关系状态",
+                "eg": "好友状态 <序号>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            }
+        ]
+    },
+    "通知": {
+        "desc": "查看通知、处理好友请求",
+        "data": [
+            {
+                "name": "通知列表",
+                "desc": "显示通知列表（含好友请求）",
+                "eg": "显示通知",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "接受请求",
+                "desc": "接受指定序号的好友请求",
+                "eg": "接受 <序号>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "忽略通知",
+                "desc": "将指定通知标记为已读",
+                "eg": "忽略 <序号>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "删除通知",
+                "desc": "删除指定通知",
+                "eg": "删除通知 <序号>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            }
+        ]
+    },
+    "世界": {
+        "desc": "搜索 VRChat 世界",
+        "data": [
+            {
+                "name": "搜索世界",
+                "desc": "按名称搜索 VRChat 世界",
+                "eg": "搜索世界 关键词",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            }
+        ]
+    },
+    "收藏": {
+        "desc": "管理 VRChat 收藏（世界、Avatar、好友）",
+        "data": [
+            {
+                "name": "收藏列表",
+                "desc": "查看收藏列表（avatar/world/friend）",
+                "eg": "收藏列表 <类型>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "收藏组列表",
+                "desc": "查看收藏组列表",
+                "eg": "收藏组列表",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "收藏限制",
+                "desc": "查看收藏容量限制",
+                "eg": "收藏限制",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "添加收藏",
+                "desc": "添加新收藏",
+                "eg": "添加收藏 <类型> <ID> [标签]",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "删除收藏",
+                "desc": "删除指定收藏",
+                "eg": "删除收藏 <收藏ID>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "收藏组详情",
+                "desc": "查看收藏组详细信息",
+                "eg": "收藏组详情 <类型> <名称>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "清空收藏组",
+                "desc": "清空指定收藏组",
+                "eg": "清空收藏组 <类型> <名称>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            }
+        ]
+    },
+    "群组": {
+        "desc": "管理 VRChat 群组（成员、角色、公告、封禁等）",
+        "data": [
+            {
+                "name": "搜索群组",
+                "desc": "按名称搜索 VRChat 群组",
+                "eg": "搜索群组 关键词",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "群组信息",
+                "desc": "查看群组详细信息",
+                "eg": "群组信息 <群组ID>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "群组成员",
+                "desc": "查看群组成员列表",
+                "eg": "群组成员 <群组ID>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "群组角色",
+                "desc": "查看群组角色列表",
+                "eg": "群组角色 <群组ID>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "群组公告",
+                "desc": "查看群组公告",
+                "eg": "群组公告 <群组ID>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "加入群组",
+                "desc": "申请加入搜索到的群组",
+                "eg": "加入 <序号>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "离开群组",
+                "desc": "离开指定群组",
+                "eg": "离开群组 <群组ID>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "处理入群请求",
+                "desc": "审批入群请求",
+                "eg": "处理请求 <序号> accept/reject",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "邀请用户",
+                "desc": "邀请用户加入群组",
+                "eg": "邀请用户 <群组ID> <用户ID>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "踢出成员",
+                "desc": "踢出群组成员",
+                "eg": "踢出成员 <群组ID> <用户ID>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "封禁成员",
+                "desc": "封禁群组成员",
+                "eg": "封禁成员 <群组ID> <用户ID>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "解除封禁",
+                "desc": "解除群组成员封禁",
+                "eg": "解除封禁 <群组ID> <用户ID>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "审计日志",
+                "desc": "查看群组审计日志",
+                "eg": "审计日志 <群组ID>",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            }
+        ]
+    },
+    "经济": {
+        "desc": "查询 VRChat 经济系统（余额、订阅、Tilia）",
+        "data": [
+            {
+                "name": "账户余额",
+                "desc": "查询账户余额与收益",
+                "eg": "余额",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "经济账户",
+                "desc": "查询经济账户信息",
+                "eg": "账户",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "订阅信息",
+                "desc": "查询订阅信息",
+                "eg": "订阅",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "Tilia状态",
+                "desc": "查询 Tilia 状态",
+                "eg": "tilia",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            },
+            {
+                "name": "收益信息",
+                "desc": "查询收益详情",
+                "eg": "收益",
+                "need_ck": false,
+                "need_sk": false,
+                "need_admin": false
+            }
+        ]
+    }
+}

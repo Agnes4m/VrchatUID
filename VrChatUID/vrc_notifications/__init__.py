@@ -10,11 +10,13 @@ from ..utils.api.notifications import (
     get_notifications,
     mark_notification_as_read,
 )
+from ..utils.render import build_notification_card, render_template
+from ..utils.session_state import get_state, has_state, set_state
 
-sv = SV("vrc通知")
+sv = SV("通知")
 
 
-@sv.on_command(("vrc显示通知", "vrcsn", "vrc通知"))
+@sv.on_command(("显示通知", "sn", "通知"))
 async def vrc_show_notifications(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -38,9 +40,7 @@ async def vrc_show_notifications(bot: Bot, ev: Event) -> None:
             await bot.send("没有通知")
             return
 
-        ev.state["vrc_notifications"] = notifications
-
-        msg = f"【通知列表】共 {len(notifications)} 条通知：\n\n"
+        set_state(ev.session_id, "_notifications", notifications)
 
         friend_requests = []
         other_notifications = []
@@ -52,33 +52,60 @@ async def vrc_show_notifications(bot: Bot, ev: Event) -> None:
             else:
                 other_notifications.append((i, notif))
 
+        # 降级文本
+        fallback = f"【通知列表】共 {len(notifications)} 条通知：\n\n"
         if friend_requests:
-            msg += f"【好友请求】{len(friend_requests)} 条\n"
+            fallback += f"【好友请求】{len(friend_requests)} 条\n"
             for idx, req in friend_requests[:10]:
                 sender_name = getattr(req, "sender_username", getattr(req, "sender_display_name", "Unknown"))
                 sender_id = getattr(req, "sender_user_id", "")
                 created_at = getattr(req, "created_at", "")
-                msg += f"  {idx}. {sender_name}\n"
-                msg += f"     ID: {sender_id}\n"
-                msg += f"     时间: {created_at}\n\n"
+                fallback += f"  {idx}. {sender_name}\n"
+                fallback += f"     ID: {sender_id}\n"
+                fallback += f"     时间: {created_at}\n\n"
 
         if other_notifications:
-            msg += f"【其他通知】{len(other_notifications)} 条\n"
+            fallback += f"【其他通知】{len(other_notifications)} 条\n"
             for idx, notif in other_notifications[:10]:
                 notif_type = getattr(notif, "type", "unknown")
                 message = getattr(notif, "message", "")[:30]
                 created_at = getattr(notif, "created_at", "")
-                msg += f"  {idx}. [{notif_type}] {message}...\n"
-                msg += f"     时间: {created_at}\n\n"
+                fallback += f"  {idx}. [{notif_type}] {message}...\n"
+                fallback += f"     时间: {created_at}\n\n"
 
         if len(notifications) > 30:
-            msg += f"... 还有 {len(notifications) - 30} 条通知\n"
+            fallback += f"... 还有 {len(notifications) - 30} 条通知\n"
 
-        msg += "\n发送【接受 序号】接受好友请求\n"
-        msg += "发送【忽略 序号】忽略好友请求\n"
-        msg += "发送【删除 序号】删除通知"
+        fallback += "\n发送【接受 序号】接受好友请求\n"
+        fallback += "发送【忽略 序号】忽略好友请求\n"
+        fallback += "发送【删除 序号】删除通知"
 
-        await bot.send(msg)
+        # 渲染图片
+        try:
+            request_section = (
+                f'<div class="section-header"><span class="section-title">好友请求</span>'
+                f'<span class="section-count">{len(friend_requests)} 条</span></div>'
+                f'<div class="grid">{"".join(build_notification_card(i, n) for i, n in friend_requests)}</div>'
+                if friend_requests
+                else ""
+            )
+            other_section = (
+                f'<div class="section-header"><span class="section-title">其他通知</span>'
+                f'<span class="section-count">{len(other_notifications)} 条</span></div>'
+                f'<div class="grid">{"".join(build_notification_card(i, n) for i, n in other_notifications)}</div>'
+                if other_notifications
+                else ""
+            )
+            image_bytes = await render_template(
+                "notification.html",
+                total_count=len(notifications),
+                request_section=request_section,
+                other_section=other_section,
+            )
+            await bot.send(image_bytes)
+        except Exception as e:
+            logger.warning(f"通知列表图片渲染失败，降级到文本: {e}")
+            await bot.send(fallback)
 
     except Exception as e:
         logger.error(f"获取通知列表失败: {e}")
@@ -94,7 +121,7 @@ async def vrc_accept_friend_request(bot: Bot, ev: Event) -> None:
     if client is None:
         return
 
-    if "vrc_notifications" not in ev.state:
+    if not has_state(ev.session_id, "_notifications"):
         await bot.send("请先使用【vrc显示通知】查看通知列表")
         return
 
@@ -105,7 +132,7 @@ async def vrc_accept_friend_request(bot: Bot, ev: Event) -> None:
 
     try:
         index = int(text) - 1
-        notifications = ev.state["vrc_notifications"]
+        notifications = get_state(ev.session_id, "_notifications")
         if index < 0 or index >= len(notifications):
             await bot.send(f"序号超出范围，请发送 1-{len(notifications)} 之间的数字")
             return
@@ -135,7 +162,7 @@ async def vrc_ignore_notification(bot: Bot, ev: Event) -> None:
     if client is None:
         return
 
-    if "vrc_notifications" not in ev.state:
+    if not has_state(ev.session_id, "_notifications"):
         await bot.send("请先使用【vrc显示通知】查看通知列表")
         return
 
@@ -146,7 +173,7 @@ async def vrc_ignore_notification(bot: Bot, ev: Event) -> None:
 
     try:
         index = int(text) - 1
-        notifications = ev.state["vrc_notifications"]
+        notifications = get_state(ev.session_id, "_notifications")
         if index < 0 or index >= len(notifications):
             await bot.send(f"序号超出范围，请发送 1-{len(notifications)} 之间的数字")
             return
@@ -170,7 +197,7 @@ async def vrc_delete_notification(bot: Bot, ev: Event) -> None:
     if client is None:
         return
 
-    if "vrc_notifications" not in ev.state:
+    if not has_state(ev.session_id, "_notifications"):
         await bot.send("请先使用【vrc显示通知】查看通知列表")
         return
 
@@ -181,7 +208,7 @@ async def vrc_delete_notification(bot: Bot, ev: Event) -> None:
 
     try:
         index = int(text) - 1
-        notifications = ev.state["vrc_notifications"]
+        notifications = get_state(ev.session_id, "_notifications")
         if index < 0 or index >= len(notifications):
             await bot.send(f"序号超出范围，请发送 1-{len(notifications)} 之间的数字")
             return

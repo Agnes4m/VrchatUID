@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>VRChat 用户搜索</title>
+</head>
+<body>
+<div class="container">
+    <h1 class="title">用户搜索结果</h1>
+    <p class="subtitle">关键词「{{ keyword }}」共找到 {{ total_count }} 位用户</p>
+
+    <div class="grid">
+        {{ user_cards }}
+    </div>
+
+    <div class="tip">
+        <div class="tip-title">操作提示</div>
+        • 发送 <b>添加 序号</b> 向用户发送好友请求<br>
+        • 发送 <b>好友 序号</b> 查看与该用户的好友状态<br>
+        • 发送 <b>详情 序号</b> 查看用户详细信息
+    </div>
+
+    <div class="footer">From VRChat API · VrChatUID Plugin</div>
+</div>
+</body>
+</html>

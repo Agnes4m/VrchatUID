@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>VRChat 收藏列表</title>
+</head>
+<body>
+<div class="container">
+    <h1 class="title">{{ fav_type }} 收藏列表</h1>
+    <p class="subtitle">共 {{ total_count }} 个收藏</p>
+
+    <div class="grid">
+        {{ fav_cards }}
+    </div>
+
+    <div class="tip">
+        <div class="tip-title">操作提示</div>
+        • 发送 <b>详情 序号</b> 查看收藏详情<br>
+        • 发送 <b>删除 序号</b> 删除收藏
+    </div>
+
+    <div class="footer">From VRChat API · VrChatUID Plugin</div>
+</div>
+</body>
+</html>

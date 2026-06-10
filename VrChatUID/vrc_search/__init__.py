@@ -6,11 +6,13 @@ from gsuid_core.sv import SV
 from ..utils.api.client import get_client_or_notify
 from ..utils.api.users import friend as send_friend_request
 from ..utils.api.users import get_friend_status, search_users
+from ..utils.render import build_user_card, render_template
+from ..utils.session_state import get_state, has_state, set_state
 
-sv = SV("vrc搜索用户")
+sv = SV("搜索用户")
 
 
-@sv.on_command(("vrc搜索用户", "vrcus", "vrcsu"))
+@sv.on_command(("搜索用户", "us", "su"))
 async def vrc_search_user(bot: Bot, ev: Event) -> None:
     user_id = ev.user_id
     bot_id = ev.bot_id
@@ -26,37 +28,46 @@ async def vrc_search_user(bot: Bot, ev: Event) -> None:
 
     try:
         await bot.send(f"正在搜索用户「{search_term}」...")
-        users = list(search_users(client, search_term, max_size=10))
+        users = list(search_users(client, search_term))
 
         if not users:
             await bot.send(f"未找到与「{search_term}」相关的用户")
             return
 
-        msg = f"【用户搜索结果】找到 {len(users)} 位用户：\n\n"
-
+        # 降级文本
+        fallback = f"【用户搜索结果】找到 {len(users)} 位用户：\n\n"
         for i, user in enumerate(users, 1):
             display_name = getattr(user, "display_name", "Unknown")
             user_id_str = getattr(user, "id", getattr(user, "user_id", ""))
-            avatar_url = getattr(user, "avatar_url", "")
             status = getattr(user, "status", "offline")
             status_description = getattr(user, "status_description", "")
 
-            msg += f"{i}. {display_name}\n"
-            msg += f"   ID: {user_id_str}\n"
-            msg += f"   状态: {status}"
+            fallback += f"{i}. {display_name}\n"
+            fallback += f"   ID: {user_id_str}\n"
+            fallback += f"   状态: {status}"
             if status_description:
-                msg += f" - {status_description}"
-            msg += "\n"
-            if avatar_url:
-                msg += f"   头像: {avatar_url}\n"
-            msg += "\n"
+                fallback += f" - {status_description}"
+            fallback += "\n\n"
 
-        msg += "发送【添加 序号】发送好友请求\n"
-        msg += "发送【好友 序号】查看好友状态\n"
-        msg += "发送【详情 序号】查看用户详情"
+        fallback += "发送【添加 序号】发送好友请求\n"
+        fallback += "发送【好友 序号】查看好友状态\n"
+        fallback += "发送【详情 序号】查看用户详情"
 
-        await bot.send(msg)
-        ev.state["vrc_search_users"] = users
+        # 渲染图片
+        try:
+            user_cards = "".join(build_user_card(i, u) for i, u in enumerate(users, 1))
+            image_bytes = await render_template(
+                "user_search.html",
+                keyword=search_term,
+                total_count=len(users),
+                user_cards=user_cards,
+            )
+            await bot.send(image_bytes)
+        except Exception as e:
+            logger.warning(f"用户搜索图片渲染失败，降级到文本: {e}")
+            await bot.send(fallback)
+
+        set_state(ev.session_id, "_search_users", users)
 
     except Exception as e:
         logger.error(f"搜索用户失败: {e}")
@@ -72,7 +83,7 @@ async def vrc_add_friend(bot: Bot, ev: Event) -> None:
     if client is None:
         return
 
-    if "vrc_search_users" not in ev.state:
+    if not has_state(ev.session_id, "_search_users"):
         await bot.send("请先使用【vrc搜索用户】搜索用户")
         return
 
@@ -83,7 +94,7 @@ async def vrc_add_friend(bot: Bot, ev: Event) -> None:
 
     try:
         index = int(text) - 1
-        users = ev.state["vrc_search_users"]
+        users = get_state(ev.session_id, "_search_users")
         if index < 0 or index >= len(users):
             await bot.send(f"序号超出范围，请发送 1-{len(users)} 之间的数字")
             return
@@ -123,7 +134,7 @@ async def vrc_friend_status(bot: Bot, ev: Event) -> None:
     if client is None:
         return
 
-    if "vrc_search_users" not in ev.state:
+    if not has_state(ev.session_id, "_search_users"):
         await bot.send("请先使用【vrc搜索用户】搜索用户")
         return
 
@@ -134,7 +145,7 @@ async def vrc_friend_status(bot: Bot, ev: Event) -> None:
 
     try:
         index = int(text) - 1
-        users = ev.state["vrc_search_users"]
+        users = get_state(ev.session_id, "_search_users")
         if index < 0 or index >= len(users):
             await bot.send(f"序号超出范围，请发送 1-{len(users)} 之间的数字")
             return
