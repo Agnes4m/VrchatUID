@@ -3,9 +3,9 @@
         "desc": "VRChat 账号管理（登录/绑定/切换/删除，参考 DeltaUID 写法）",
         "data": [
             {
-                "name": "登录账号",
-                "desc": "登录 VRChat 账号（支持 2FA），首次登录自动绑定",
-                "eg": "登录 用户名 密码",
+                "name": "登录",
+                "desc": "登录 VRChat 账号（支持 2FA）。带参数时强制覆盖并保存密码；无参数且已保存密码时自动重登刷新 cookie",
+                "eg": "登录 [用户名 密码]",
                 "need_ck": false,
                 "need_sk": false,
                 "need_admin": false

@@ -10,6 +10,7 @@ from ..utils.api.client import (
     NotLoggedInError,
     TwoFactorAuthError,
     login_via_password,
+    relogin_via_password,
 )
 from ..utils.database import (
     list_binds,
@@ -36,12 +37,32 @@ def _response_msg(retcode: int, success_msg: str = "", uid: str = "") -> str:
 
 
 async def _login_account(bot: Bot, ev: Event):
-    """执行登录流程，返回 (success, vrc_uid, message)"""
+    """执行登录流程，返回 (success, vrc_uid, message)
+
+    命令行为：
+    - 无参数（仅发送【登录】）：
+        若数据库中已保存账号密码，则自动调用 relogin_via_password 重新登录；
+        若未保存，则提示需要传入用户名密码。
+    - 带参数（【登录 用户名 密码】）：强制使用传入凭证覆盖数据库中的旧凭证。
+    """
+    from vrchatapi.exceptions import ApiException
+
     user_id = ev.user_id
     bot_id = ev.bot_id
-
     text = ev.text.strip()
+
     if not text:
+        cred = await _get_saved_credentials(user_id, bot_id)
+        if cred is not None and cred.username and cred.password:
+            return await _do_login(bot, user_id, bot_id, lambda: relogin_via_password(user_id, bot_id))
+        if cred is not None and cred.vrc_uid:
+            await bot.send(
+                "⚠️ 已检测到您的 VRChat 账号绑定，但本地未保存密码，无法自动刷新登录态。\n"
+                "请重新发送【登录 邮箱 密码】保存凭证，下次发送【登录】即可自动重登。\n\n"
+                "格式：登录 用户名 密码\n"
+                "例如：登录 example@email.com mypassword"
+            )
+            return None
         await bot.send(
             "请发送用户名和密码，格式：\n登录 用户名 密码\n\n"
             "例如：登录 example@email.com mypassword\n\n"
@@ -55,58 +76,80 @@ async def _login_account(bot: Bot, ev: Event):
         return None
 
     username, password = parts
+    return await _do_login(bot, user_id, bot_id, lambda: login_via_password(user_id, bot_id, username, password))
 
-    async def _do_login(login_func) -> dict | None:
+
+async def _get_saved_credentials(user_id: str, bot_id: str):
+    from ..utils.database import get_user_credentials
+
+    try:
+        return await get_user_credentials(user_id, bot_id)
+    except Exception:
+        return None
+
+
+async def _do_login(bot: Bot, user_id: str, bot_id: str, login_func) -> dict | None:
+    """登录执行器：负责调用登录函数、处理 2FA 等待、错误提示
+
+    Args:
+        login_func: 一个无参 async callable，返回 CurrentUser 或抛出异常
+    """
+    try:
+        await bot.send("正在验证登录信息...")
+        current_user = await login_func()
+        if not current_user:
+            return None
+        log_api_response("_do_login.current_user", current_user)
+        vrc_uid = str(getattr(current_user, "id", "") or "")
+        display_name = str(getattr(current_user, "display_name", "") or "")
+        # 注意：client.py 的 _save_user_info 已自动调用 save_credentials 写入数据库与 cookie 文件
+        return {
+            "vrc_uid": vrc_uid,
+            "display_name": display_name,
+        }
+    except TwoFactorAuthError as e:
+        resp = await bot.receive_resp(
+            "⚠️ 需要2FA验证\n\n请查收验证码后直接回复验证码（5-6位数字）\n超时时间：60秒",
+            timeout=60,
+        )
+        if resp is None:
+            await bot.send("❌ 验证码输入超时，请重新发送【登录 用户名 密码】")
+            return None
+        verify_code = resp.text.strip()
+        if not verify_code.isdigit():
+            await bot.send("❌ 验证码格式错误，请输入纯数字验证码")
+            return None
         try:
-            await bot.send("正在验证登录信息...")
-            current_user = await login_func()
+            await bot.send("正在验证验证码...")
+            current_user = await e.verify_func(verify_code)
             if not current_user:
                 return None
-            log_api_response("_do_login.current_user", current_user)
+            log_api_response("_do_login.verify_two_fa", current_user)
             vrc_uid = str(getattr(current_user, "id", "") or "")
             display_name = str(getattr(current_user, "display_name", "") or "")
-            # 注意：client.py 的 _save_user_info 已自动调用 save_credentials 写入数据库与 cookie 文件
-            # 这里不再重复调用，避免 double-save
-            return {
-                "vrc_uid": vrc_uid,
-                "display_name": display_name,
-            }
-        except TwoFactorAuthError as e:
-            resp = await bot.receive_resp(
-                "⚠️ 需要2FA验证\n\n请查收验证码后直接回复验证码（5-6位数字）\n超时时间：60秒",
-                timeout=60,
-            )
-            if resp is None:
-                await bot.send("❌ 验证码输入超时，请重新发送【登录 用户名 密码】")
-                return None
-            verify_code = resp.text.strip()
-            if not verify_code.isdigit():
-                await bot.send("❌ 验证码格式错误，请输入纯数字验证码")
-                return None
-            try:
-                await bot.send("正在验证验证码...")
-                current_user = await e.verify_func(verify_code)
-                if not current_user:
-                    return None
-                log_api_response("_do_login.verify_two_fa", current_user)
-                vrc_uid = str(getattr(current_user, "id", "") or "")
-                display_name = str(getattr(current_user, "display_name", "") or "")
-                # 2FA 路径同样由 client.py 的 verify_two_fa 自动保存
-                return {"vrc_uid": vrc_uid, "display_name": display_name}
-            except Exception as verify_error:
-                logger.error(f"VRChat 验证码验证失败: {verify_error}")
-                await bot.send("❌ 验证码验证失败，请检查验证码是否正确后重试")
-                return None
-        except Exception as exc:
-            error_msg = str(exc)
-            logger.error(f"VRChat 登录失败: {exc}")
-            if "401" in error_msg or "Unauthorized" in error_msg:
-                await bot.send("❌ 登录失败：用户名或密码错误\n\n请检查您的账号信息后重试")
-            else:
-                await bot.send("❌ 登录失败，请查看终端日志")
+            return {"vrc_uid": vrc_uid, "display_name": display_name}
+        except Exception as verify_error:
+            logger.error(f"VRChat 验证码验证失败: {verify_error}")
+            await bot.send("❌ 验证码验证失败，请检查验证码是否正确后重试")
             return None
+    except NotLoggedInError as e:
+        await bot.send(f"❌ {e}")
+        return None
+    except Exception as exc:
+        from vrchatapi.exceptions import ApiException
 
-    return await _do_login(lambda: login_via_password(user_id, bot_id, username, password))
+        error_msg = str(exc)
+        logger.error(f"VRChat 登录失败: {exc}")
+        is_401 = (
+            (isinstance(exc, ApiException) and getattr(exc, "status", None) == 401)
+            or "401" in error_msg
+            or "Unauthorized" in error_msg
+        )
+        if is_401:
+            await bot.send("❌ 登录失败：用户名或密码错误\n\n请检查您的账号信息后重试")
+        else:
+            await bot.send("❌ 登录失败，请查看终端日志")
+        return None
 
 
 @sv.on_command(

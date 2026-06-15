@@ -1,12 +1,20 @@
 # VRChat API 模块
 
 __all__ = [
+    # helpers
+    "ActionResult",
+    "StatusCode",
+    "api_action",
+    "format_api_error",
     # client
     "NotLoggedInError",
     "TwoFactorAuthError",
     "get_client",
     "get_client_or_notify",
+    "get_client_or_notify_with_retry",
+    "get_client_with_retry",
     "login_via_password",
+    "relogin_via_password",
     "get_current_user_info",
     # friend
     "get_friends",
@@ -78,13 +86,17 @@ __all__ = [
     "get_current_subscriptions",
 ]
 
+from ._helpers import ActionResult, StatusCode, api_action, format_api_error
 from .client import (
     NotLoggedInError,
     TwoFactorAuthError,
     get_client,
     get_client_or_notify,
+    get_client_or_notify_with_retry,
+    get_client_with_retry,
     get_current_user_info,
     login_via_password,
+    relogin_via_password,
 )
 from .economy import (
     get_balance,

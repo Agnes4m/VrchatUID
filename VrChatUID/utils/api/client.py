@@ -106,6 +106,42 @@ async def get_client_or_notify(bot, user_id: str, bot_id: str):
         return None
 
 
+async def get_client_or_notify_with_retry(bot, user_id: str, bot_id: str):
+    """获取 API 客户端；凭证失效时自动用存储密码重登一次
+
+    与 get_client_or_notify 的区别：
+    - 当 cookie 失效（401/Missing Credentials）时，自动用数据库里
+      已保存的用户名密码重新登录刷新 cookie，再返回新客户端
+    - 仍会保留未登录时的友好提示
+    - 不可用时通过 bot.send 提示后返回 None
+
+    Usage:
+        client = await get_client_or_notify_with_retry(bot, user_id, bot_id)
+        if client is None:
+            return
+    """
+    try:
+        client = await get_client_with_retry(user_id, bot_id)
+        return client
+    except NotLoggedInError as e:
+        await bot.send(f"您还没有登录 VRChat！{e}\n请先发送【vrc登录 用户名 密码】")
+        return None
+    except TwoFactorAuthError:
+        await bot.send("自动重登时检测到 2FA 验证，请手动【vrc登录 用户名 密码】完成验证")
+        return None
+    except ApiException as e:
+        status = getattr(e, "status", None)
+        if status == 401:
+            await bot.send("登录凭证已失效，且自动重登失败（可能是密码已变更）。\n请重新发送【vrc登录 用户名 密码】")
+        else:
+            await bot.send(f"自动重登失败：HTTP {status or '未知'}")
+        return None
+    except Exception as e:
+        logger.exception(f"get_client_or_notify_with_retry 异常: {e}")
+        await bot.send(f"自动重登失败：{e}")
+        return None
+
+
 async def verify_login(user_id: str, bot_id: str) -> bool:
     """验证登录状态"""
     try:
@@ -211,6 +247,77 @@ async def get_current_user_info(user_id: str, bot_id: str) -> Optional["CurrentU
 
         api = AuthenticationApi(client)
         return await asyncio.to_thread(api.get_current_user)
+    except Exception:
+        return None
+
+
+async def relogin_via_password(user_id: str, bot_id: str) -> "CurrentUser":
+    """使用数据库中已存储的用户名和密码重新登录 VRChat
+
+    用于 cookie 过期 / 凭证失效时自动刷新登录态。登录成功后会
+    自动调用 _save_user_info 写入新的 cookie 到数据库与 cookie 文件。
+
+    Raises:
+        NotLoggedInError: 当前账号未在数据库中保存密码（需要重新【vrc登录】）
+        ApiException: 重新登录失败（密码错误 / 触发 2FA / 网络异常等）
+    """
+    from ..database import get_user_credentials
+
+    cred = await get_user_credentials(user_id, bot_id)
+    if cred is None:
+        raise NotLoggedInError("未找到登录信息，请先发送【vrc登录 用户名 密码】")
+    if not cred.username or not cred.password:
+        raise NotLoggedInError("数据库中未保存密码，无法自动重登，请手动【vrc登录 用户名 密码】")
+
+    logger.info(f"VRC 自动重登: user_id={user_id}, vrc_uid={cred.vrc_uid}")
+    return await login_via_password(
+        user_id=user_id,
+        bot_id=bot_id,
+        username=cred.username,
+        password=cred.password,
+    )
+
+
+async def get_client_with_retry(user_id: str, bot_id: str) -> ApiClient:
+    """获取 API 客户端；凭证失效时自动用存储的密码重登一次
+
+    流程：
+    1. 调用 get_client 创建客户端
+    2. 探测一次（get_current_user）验证 cookie 有效性
+    3. 若 401/cookie 失效，则调用 relogin_via_password 重新登录后再次获取
+
+    Returns:
+        可用的 ApiClient
+
+    Raises:
+        NotLoggedInError: 未登录或数据库无密码
+        ApiException: 重登后仍失败
+    """
+    from vrchatapi.api import AuthenticationApi
+
+    client = await get_client(user_id, bot_id)
+
+    api = AuthenticationApi(client)
+    try:
+        await asyncio.to_thread(api.get_current_user)
+        return client
+    except UnauthorizedException:
+        pass
+    except Exception:
+        return client
+
+    logger.warning(f"VRC cookie 失效，尝试自动重登: user_id={user_id}, bot_id={bot_id}")
+    remove_cookies(bot_id, user_id, (await _safe_vrc_uid(user_id, bot_id)) or "")
+    await relogin_via_password(user_id, bot_id)
+    return await get_client(user_id, bot_id)
+
+
+async def _safe_vrc_uid(user_id: str, bot_id: str) -> str | None:
+    try:
+        from ..database import get_user_credentials
+
+        cred = await get_user_credentials(user_id, bot_id)
+        return cred.vrc_uid if cred else None
     except Exception:
         return None
 

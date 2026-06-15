@@ -18,6 +18,7 @@ _RAW_HTML_KEYS = frozenset(
         "request_section",
         "other_section",
         "online_section",
+        "web_section",
         "offline_section",
     }
 )
