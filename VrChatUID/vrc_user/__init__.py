@@ -37,14 +37,7 @@ def _response_msg(retcode: int, success_msg: str = "", uid: str = "") -> str:
 
 
 async def _login_account(bot: Bot, ev: Event):
-    """执行登录流程，返回 (success, vrc_uid, message)
-
-    命令行为：
-    - 无参数（仅发送【登录】）：
-        若数据库中已保存账号密码，则自动调用 relogin_via_password 重新登录；
-        若未保存，则提示需要传入用户名密码。
-    - 带参数（【登录 用户名 密码】）：强制使用传入凭证覆盖数据库中的旧凭证。
-    """
+    """登录流程：无参则尝试用已存密码自动重登；带参则覆盖登录"""
     from vrchatapi.exceptions import ApiException
 
     user_id = ev.user_id
@@ -89,10 +82,10 @@ async def _get_saved_credentials(user_id: str, bot_id: str):
 
 
 async def _do_login(bot: Bot, user_id: str, bot_id: str, login_func) -> dict | None:
-    """登录执行器：负责调用登录函数、处理 2FA 等待、错误提示
+    """登录执行器：调用登录函数、处理 2FA 等待、错误提示
 
     Args:
-        login_func: 一个无参 async callable，返回 CurrentUser 或抛出异常
+        login_func: 无参 async callable，返回 CurrentUser 或抛出异常
     """
     try:
         await bot.send("正在验证登录信息...")
@@ -102,7 +95,6 @@ async def _do_login(bot: Bot, user_id: str, bot_id: str, login_func) -> dict | N
         log_api_response("_do_login.current_user", current_user)
         vrc_uid = str(getattr(current_user, "id", "") or "")
         display_name = str(getattr(current_user, "display_name", "") or "")
-        # 注意：client.py 的 _save_user_info 已自动调用 save_credentials 写入数据库与 cookie 文件
         return {
             "vrc_uid": vrc_uid,
             "display_name": display_name,

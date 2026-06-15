@@ -150,57 +150,37 @@ type _DecoratedFunc = Callable[..., Awaitable[None]]
 
 
 def api_action(action_name: str) -> Callable[[_ActionFunc], _DecoratedFunc]:
-    """命令装饰器：自动捕获异常并向用户发送友好提示
+    """命令装饰器：捕获 ApiException/Exception 并发送友好提示；401 时自动重登重试一次
 
-    被装饰的函数应返回 ActionResult 或 None。装饰器会:
-    1. 捕获 ApiException → 调用 format_api_error → 提示
-    2. 捕获其他 Exception → 通用提示
-    3. SUCCESS 状态下不发送消息（由命令自行控制成功时的输出）
+    被装饰函数返回 ActionResult 或 None。SUCCESS 状态下不发送消息（命令自行控制）。
 
     Usage:
         @api_action("获取好友列表")
         async def vrc_friend_list(bot: Bot, ev: Event) -> ActionResult:
-            friends = list(get_all_friends(client))
-            if not friends:
-                return ActionResult.info("您的好友列表为空")
-            await bot.send(build_friend_image(friends))
+            ...
             return ActionResult.success()
     """
 
     def decorator(func: _ActionFunc) -> _DecoratedFunc:
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> None:
-            bot: Bot | None = None
-            for arg in args:
-                if isinstance(arg, Bot):
-                    bot = arg
-                    break
-            if bot is None:
-                bot = kwargs.get("bot")
-
-            user_id: str | None = kwargs.get("user_id")
-            if user_id is None:
-                for arg in args:
-                    uid = getattr(arg, "user_id", None)
-                    if isinstance(uid, str):
-                        user_id = uid
-                        break
-            bot_id: str | None = kwargs.get("bot_id")
-            if bot_id is None:
-                for arg in args:
-                    bid = getattr(arg, "bot_id", None)
-                    if isinstance(bid, str):
-                        bot_id = bid
-                        break
+            bot: Bot | None = next((a for a in args if isinstance(a, Bot)), kwargs.get("bot"))
+            user_id = _extract_arg(args, kwargs, "user_id")
+            bot_id = _extract_arg(args, kwargs, "bot_id")
 
             for attempt in range(2):
                 try:
                     result = await func(*args, **kwargs)
                 except ApiException as e:
-                    if attempt == 0 and isinstance(e, UnauthorizedException) and user_id and bot_id:
-                        logger.warning(f"{action_name} 命中 401，尝试自动重登后重试一次")
-                        if await _try_relogin(user_id, bot_id, bot):
-                            continue
+                    if (
+                        attempt == 0
+                        and isinstance(e, UnauthorizedException)
+                        and user_id
+                        and bot_id
+                        and await _try_relogin(user_id, bot_id, bot)
+                    ):
+                        logger.warning(f"{action_name} 命中 401，自动重登后重试")
+                        continue
                     logger.error(f"{action_name}失败 (API): {e}")
                     if bot is not None:
                         await bot.send(f"{action_name}失败：{format_api_error(e)}")
@@ -212,10 +192,7 @@ def api_action(action_name: str) -> Callable[[_ActionFunc], _DecoratedFunc]:
                         await bot.send(f"{action_name}失败：{detail}")
                     return
 
-                if result is None or bot is None:
-                    return
-
-                if result.status == StatusCode.SUCCESS:
+                if result is None or bot is None or result.status == StatusCode.SUCCESS:
                     return
                 await bot.send(result.msg)
                 return
@@ -225,8 +202,20 @@ def api_action(action_name: str) -> Callable[[_ActionFunc], _DecoratedFunc]:
     return decorator
 
 
+def _extract_arg(args: tuple, kwargs: dict, name: str) -> str | None:
+    """从 kwargs 或 args 中的 Event 提取字段"""
+    val = kwargs.get(name)
+    if isinstance(val, str):
+        return val
+    for arg in args:
+        v = getattr(arg, name, None)
+        if isinstance(v, str):
+            return v
+    return None
+
+
 async def _try_relogin(user_id: str, bot_id: str, bot: Bot | None) -> bool:
-    """尝试用已存储密码重登一次，返回是否成功（成功则调用方可重试）"""
+    """尝试用已存储密码重登一次"""
     from .client import relogin_via_password
 
     try:

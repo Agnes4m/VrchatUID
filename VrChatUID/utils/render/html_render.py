@@ -2,10 +2,13 @@
 
 import html as html_lib
 import logging
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+_BEIJING_TZ = timezone(timedelta(hours=8))
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 STYLES_DIR = Path(__file__).parent / "styles"
@@ -176,12 +179,42 @@ async def send_template_or_fallback(
         await bot.send(fallback_text)
 
 
+def _format_beijing_time(value: Any) -> str:
+    """将 VRChat 时间字符串（如 "2026-06-14 13:31:56.726000+00:00"）转为北京时间
+
+    返回格式：MM-DD HH:MM（当年内）/ YYYY-MM-DD HH:MM（跨年）
+    """
+    if not value:
+        return ""
+    try:
+        if isinstance(value, str):
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        elif isinstance(value, datetime):
+            dt = value
+        else:
+            return ""
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        bj = dt.astimezone(_BEIJING_TZ)
+        now = datetime.now(_BEIJING_TZ)
+        if bj.year == now.year:
+            return bj.strftime("%m-%d %H:%M")
+        return bj.strftime("%Y-%m-%d %H:%M")
+    except (ValueError, TypeError):
+        return ""
+
+
+def _friend_avatar_url(friend) -> str:
+    """优先使用 user_icon（pro+ 自定义头像），fallback 到 current_avatar_thumbnail_image_url"""
+    return getattr(friend, "user_icon", "") or getattr(friend, "current_avatar_thumbnail_image_url", "")
+
+
 def build_friend_card(idx: int, friend) -> str:
     name = _esc(getattr(friend, "display_name", "Unknown"))
-    user_id = _esc(getattr(friend, "id", ""))
     status = getattr(friend, "status", "offline")
     status_desc = getattr(friend, "status_description", "") or status
-    avatar = _avatar(getattr(friend, "current_avatar_thumbnail_image_url", ""), "👤")
+    avatar = _avatar(_friend_avatar_url(friend), "👤")
+    last_active = _esc(_format_beijing_time(getattr(friend, "last_activity", None)))
 
     return f"""
 <div class="card">
@@ -189,11 +222,11 @@ def build_friend_card(idx: int, friend) -> str:
     {avatar}
     <div class="card-body">
         <div class="card-name">{name}</div>
-        <div class="card-id">{user_id}</div>
         <div class="card-row">
             <span class="status-dot {_status_class(status)}"></span>
             <span class="badge {_badge_class(status)}">{_esc(status_desc)}</span>
         </div>
+        {f'<div class="card-row" style="font-size: 10px; color: #6a6a7e;">🕒 {last_active}</div>' if last_active else ""}
     </div>
 </div>
 """

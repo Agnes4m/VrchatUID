@@ -32,12 +32,8 @@ async def vrc_friend_list(bot: Bot, ev: Event) -> ActionResult:
     web_friends = []
     offline_friends = []
 
+    # status 字段是用户自定义文案，不能用作在线判定；以 platform 字段为准
     for friend in friends:
-        # VRChat 用户的 `status` 字段是用户自定义文案（"join me" / "working" 等），
-        # 不能作为在线判定；正确判定依据是 `platform` 字段：
-        #   - platform 为空或 "unknownplatform" → 离线
-        #   - platform == "web"                  → Web 在线
-        #   - 其余（standalonewindows / android / ios / standalonequest 等）→ 正常在线
         platform = (getattr(friend, "platform", "") or "").lower()
         if not platform or platform == "unknownplatform":
             offline_friends.append(friend)
